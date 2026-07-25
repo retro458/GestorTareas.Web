@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import api from '@/api/axios'
-import type { NotificacionEvento } from '@/composables/useTareasHub'
+import type { NotificacionResponse } from '@/types'
 
 const props = defineProps<{
-  notificaciones: NotificacionEvento[]
+  notificaciones: NotificacionResponse[]
 }>()
 
 const emit = defineEmits<{
@@ -12,8 +12,9 @@ const emit = defineEmits<{
 }>()
 
 const abierto = ref(false)
+const wrapperRef = ref<HTMLElement | null>(null)
 
-async function marcarLeida(noti: NotificacionEvento) {
+async function marcarLeida(noti: NotificacionResponse) {
   try {
     await api.patch(`/notificaciones/${noti.id}/marcar-leida`)
     emit('quitar', noti.id)
@@ -21,10 +22,19 @@ async function marcarLeida(noti: NotificacionEvento) {
     // si falla, la dejamos visible para reintentar
   }
 }
+
+function manejarClickFuera(evento: MouseEvent) {
+  if (abierto.value && wrapperRef.value && !wrapperRef.value.contains(evento.target as Node)) {
+    abierto.value = false
+  }
+}
+
+onMounted(() => document.addEventListener('click', manejarClickFuera))
+onUnmounted(() => document.removeEventListener('click', manejarClickFuera))
 </script>
 
 <template>
-  <div class="campana-wrapper">
+  <div class="campana-wrapper" ref="wrapperRef">
     <button class="btn-campana" @click="abierto = !abierto">
       🔔
       <span v-if="notificaciones.length > 0" class="contador">{{ notificaciones.length }}</span>

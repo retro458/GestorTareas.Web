@@ -50,7 +50,18 @@ export interface NotificacionResponse {
   leida: boolean
   fechaCreacion: string
 }
- 
+
+export interface EmpleadoResponse {
+  id: number
+  nombre: string
+  nombreRol: string
+}
+
+export interface EstadoResponse {
+  id: number
+  nombre: string
+}
+
 // Roles como constantes, para no comparar strings "a mano" repetidamente
 // en cada componente 
 export const ROLES = {

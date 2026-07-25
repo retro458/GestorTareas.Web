@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import api from '@/api/axios'
 import { useAuthStore } from '@/stores/auth'
 import type { TareaResponse } from '@/types'
+import NotificacionesCampana from '@/components/NotificacionesCampana.vue'
+import { useTareasHub } from '@/composables/useTareasHub'
+import { useEstados } from '@/composables/useEstados'
 
 const authStore = useAuthStore()
 
@@ -11,12 +14,11 @@ const cargando = ref(false)
 const errorCarga = ref<string | null>(null)
 const actualizandoId = ref<number | null>(null)
 
-// Ajusta estos IDs a los reales de tu tabla Estados
-const ESTADOS = [
-  { id: 1, nombre: 'Pendiente' },
-  { id: 2, nombre: 'En Progreso' },
-  { id: 3, nombre: 'Completada' }
-]
+const { notificaciones, quitarNotificacion } = useTareasHub(() => cargarTareas())
+const { estados, cargarEstados } = useEstados()
+
+// Un empleado no cancela sus propias tareas, eso queda a criterio de Jefe/Encargado
+const estadosDisponibles = computed(() => estados.value.filter(e => e.nombre !== 'Cancelada'))
 
 async function cargarTareas() {
   cargando.value = true
@@ -47,10 +49,15 @@ function colorEstado(estado: string) {
   switch (estado) {
     case 'Pendiente': return 'badge-pendiente'
     case 'En Progreso': return 'badge-progreso'
+    case 'En Revisión': return 'badge-revision'
     case 'Completada': return 'badge-completada'
     case 'Cancelada': return 'badge-cancelada'
     default: return ''
   }
+}
+
+function esEstadoFinal(estado: string) {
+  return estado === 'Completada' || estado === 'Cancelada'
 }
 
 async function cerrarSesion() {
@@ -58,11 +65,10 @@ async function cerrarSesion() {
   window.location.href = '/login'
 }
 
-onMounted(cargarTareas)
-
-// NOTA: aqui es donde conectas useTareasHub() para escuchar "NuevaNotificacion"
-// (ej. cuando el jefe/encargado te reasigna o asigna una tarea nueva) y
-// refrescar la lista automaticamente sin que el empleado tenga que recargar.
+onMounted(() => {
+  cargarTareas()
+  cargarEstados()
+})
 </script>
 
 <template>
@@ -73,6 +79,7 @@ onMounted(cargarTareas)
           <h1>Mis tareas</h1>
           <p class="bienvenida">Hola, {{ authStore.usuario?.nombre }} 👋</p>
         </div>
+        <NotificacionesCampana :notificaciones="notificaciones" @quitar="quitarNotificacion" />
         <button class="btn-secundario" @click="cerrarSesion">Cerrar sesión</button>
       </header>
 
@@ -103,11 +110,11 @@ onMounted(cargarTareas)
           <div class="tarea-accion">
             <label>Actualizar estado</label>
             <select
-              :value="ESTADOS.find(e => e.nombre === tarea.estado)?.id"
-              :disabled="actualizandoId === tarea.id || tarea.estado === 'Completada'"
+              :value="estados.find(e => e.nombre === tarea.estado)?.id"
+              :disabled="actualizandoId === tarea.id || esEstadoFinal(tarea.estado)"
               @change="cambiarEstado(tarea.id, Number(($event.target as HTMLSelectElement).value))"
             >
-              <option v-for="estado in ESTADOS" :key="estado.id" :value="estado.id">
+              <option v-for="estado in estadosDisponibles" :key="estado.id" :value="estado.id">
                 {{ estado.nombre }}
               </option>
             </select>
@@ -194,6 +201,7 @@ h1 { margin: 0; font-size: 1.4rem; color: #f3f4f6; }
 .badge { padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.72rem; font-weight: 600; }
 .badge-pendiente { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
 .badge-progreso { background: rgba(96, 165, 250, 0.15); color: #60a5fa; }
+.badge-revision { background: rgba(168, 85, 247, 0.15); color: #c084fc; }
 .badge-completada { background: rgba(52, 211, 153, 0.15); color: #34d399; }
 .badge-cancelada { background: rgba(248, 113, 113, 0.15); color: #f87171; }
 </style>

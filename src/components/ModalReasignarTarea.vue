@@ -1,15 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import api from '@/api/axios'
-import { useAuthStore } from '@/stores/auth'
-import { ROLES } from '@/types'
-
-const authStore = useAuthStore()
-interface Empleado {
-  id: number
-  nombre: string
-  nombreRol: string
-}
+import { useEmpleados } from '@/composables/useEmpleados'
 
 const props = defineProps<{
   tareaId: number
@@ -21,27 +13,8 @@ const emit = defineEmits<{
   reasignado: []
 }>()
 
-const empleados = ref<Empleado[]>([])
-const cargando = ref(false)
+const { empleados, cargando, error, cargarEmpleados } = useEmpleados()
 const reasignando = ref(false)
-const error = ref<string | null>(null)
-
-async function cargarEmpleados() {
-  cargando.value = true
-  error.value = null
-  try {
-    const endpoint = authStore.usuario?.rol === ROLES.JEFE
-      ? '/usuario/empleados/todos'
-      : '/usuario/empleados/departamento'
-
-    const { data } = await api.get<Empleado[]>(endpoint)
-    empleados.value = data
-  } catch {
-    error.value = 'No se pudo cargar la lista de empleados.'
-  } finally {
-    cargando.value = false
-  }
-}
 
 async function seleccionar(empleadoId: number) {
   reasignando.value = true

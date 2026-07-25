@@ -1,17 +1,22 @@
 import { ref, onUnmounted } from 'vue'
 import * as signalR from '@microsoft/signalr'
+import api from '@/api/axios'
+import type { NotificacionResponse } from '@/types'
 
-export interface NotificacionEvento {
-  id: number
-  tareaId: number
-  mensaje: string
-  leida: boolean
-  fechaCreacion: string
-}
+export type NotificacionEvento = NotificacionResponse
 
 export function useTareasHub(onTareaActualizada?: () => void) {
   const notificaciones = ref<NotificacionEvento[]>([])
   const conectado = ref(false)
+
+  async function cargarNotificacionesPendientes() {
+    try {
+      const { data } = await api.get<NotificacionResponse[]>('/notificaciones/no-leidas')
+      notificaciones.value = data
+    } catch (err) {
+      console.error('Error al cargar notificaciones pendientes:', err)
+    }
+  }
 
   const connection = new signalR.HubConnectionBuilder()
     .withUrl(import.meta.env.VITE_HUB_URL, { withCredentials: true })
@@ -34,6 +39,8 @@ export function useTareasHub(onTareaActualizada?: () => void) {
   connection.start()
     .then(() => { conectado.value = true })
     .catch((err) => console.error('Error al conectar con el Hub:', err))
+
+  cargarNotificacionesPendientes()
 
   onUnmounted(() => {
     connection.stop()

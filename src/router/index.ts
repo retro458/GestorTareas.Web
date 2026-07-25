@@ -57,7 +57,7 @@ const router = createRouter({
 // no son la barrera de seguridad real. El backend sigue validando
 // cada request con [Authorize(Roles=...)] independientemente de que
 // el frontend deje o no ver la ruta. 
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   const auth = useAuthStore()
 
   // Ruta solo para invitados (login)

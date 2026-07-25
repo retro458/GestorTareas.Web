@@ -6,6 +6,7 @@ import type { TareaResponse, CrearTareaRequest } from '@/types'
 import ModalReasignarTarea from '@/components/ModalReasignarTarea.vue'
 import NotificacionesCampana from '@/components/NotificacionesCampana.vue'
 import { useTareasHub } from '@/composables/useTareasHub'
+import { useEmpleados } from '@/composables/useEmpleados'
 const authStore = useAuthStore()
 
 const tareas = ref<TareaResponse[]>([])
@@ -15,6 +16,7 @@ const modalTareaId = ref<number | null>(null)
 const modalTareaTitulo = ref('')
 
 const { notificaciones, quitarNotificacion } = useTareasHub(() => cargarTareas())
+const { empleados, cargarEmpleados } = useEmpleados()
 
 function abrirModalReasignar(tarea: TareaResponse) {
   modalTareaId.value = tarea.id
@@ -32,9 +34,6 @@ const nuevaTarea = ref<CrearTareaRequest>({
 })
 const creando = ref(false)
 const errorCreacion = ref<string | null>(null)
-
-const reasignandoId = ref<number | null>(null)
-const nuevoEmpleadoId = ref<number | null>(null)
 
 async function cargarTareas() {
   cargando.value = true
@@ -64,26 +63,11 @@ async function crearTarea() {
   }
 }
 
-function abrirReasignacion(tareaId: number) {
-  reasignandoId.value = tareaId
-  nuevoEmpleadoId.value = null
-}
-
-async function confirmarReasignacion(tareaId: number) {
-  if (!nuevoEmpleadoId.value) return
-  try {
-    await api.patch(`/tareas/${tareaId}/reasignar`, { nuevoAsignadoA: nuevoEmpleadoId.value })
-    reasignandoId.value = null
-    await cargarTareas()
-  } catch (err: any) {
-    alert(err.response?.data?.error ?? 'No se pudo reasignar la tarea.')
-  }
-}
-
 function colorEstado(estado: string) {
   switch (estado) {
     case 'Pendiente': return 'badge-pendiente'
     case 'En Progreso': return 'badge-progreso'
+    case 'En Revisión': return 'badge-revision'
     case 'Completada': return 'badge-completada'
     case 'Cancelada': return 'badge-cancelada'
     default: return ''
@@ -95,7 +79,10 @@ async function cerrarSesion() {
   window.location.href = '/login'
 }
 
-onMounted(cargarTareas)
+onMounted(() => {
+  cargarTareas()
+  cargarEmpleados()
+})
 </script>
 
 <template>
@@ -149,8 +136,13 @@ onMounted(cargarTareas)
         </div>
         <div class="fila">
           <div class="campo">
-            <label>ID del empleado asignado</label>
-            <input v-model.number="nuevaTarea.asignadoA" type="number" required placeholder="Ej. 3" />
+            <label>Empleado asignado</label>
+            <select v-model.number="nuevaTarea.asignadoA" required>
+              <option :value="0" disabled>Selecciona un empleado</option>
+              <option v-for="empleado in empleados" :key="empleado.id" :value="empleado.id">
+                {{ empleado.nombre }} · {{ empleado.nombreRol }}
+              </option>
+            </select>
           </div>
           <div class="campo">
             <label>Prioridad</label>
@@ -188,26 +180,21 @@ onMounted(cargarTareas)
               <td>{{ tarea.prioridad }}</td>
               <td>{{ tarea.fechaVencimiento ? new Date(tarea.fechaVencimiento).toLocaleDateString() : '—' }}</td>
               <td>
-                <div v-if="reasignandoId === tarea.id" class="reasignar-inline">
-                  <input v-model.number="nuevoEmpleadoId" type="number" placeholder="ID" class="input-reasignar" />
-                  <button class="btn-mini btn-confirmar" @click="confirmarReasignacion(tarea.id)">✓</button>
-                  <button class="btn-mini btn-cancelar" @click="reasignandoId = null">✕</button>
-                </div>
                 <button class="btn-mini" @click="abrirModalReasignar(tarea)">Reasignar</button>
-                <ModalReasignarTarea
-                v-if="modalTareaId"
-                :tarea-id="modalTareaId"
-                :titulo-tarea="modalTareaTitulo"
-                @cerrar="modalTareaId = null"
-                @reasignado="() => { modalTareaId = null; cargarTareas() }"
-                />
-                <span v-else class="texto-tenue">—</span>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
       <p v-else-if="!cargando" class="vacio">No hay tareas registradas todavía.</p>
+
+      <ModalReasignarTarea
+        v-if="modalTareaId"
+        :tarea-id="modalTareaId"
+        :titulo-tarea="modalTareaTitulo"
+        @cerrar="modalTareaId = null"
+        @reasignado="() => { modalTareaId = null; cargarTareas() }"
+      />
     </div>
   </div>
 </template>
@@ -308,16 +295,9 @@ h1 { margin: 0; font-size: 1.4rem; color: #f3f4f6; }
 .badge { padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.72rem; font-weight: 600; }
 .badge-pendiente { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
 .badge-progreso { background: rgba(96, 165, 250, 0.15); color: #60a5fa; }
+.badge-revision { background: rgba(168, 85, 247, 0.15); color: #c084fc; }
 .badge-completada { background: rgba(52, 211, 153, 0.15); color: #34d399; }
 .badge-cancelada { background: rgba(248, 113, 113, 0.15); color: #f87171; }
 
 .btn-mini { background: rgba(99, 102, 241, 0.15); color: #a5b4fc; padding: 0.3rem 0.6rem; font-size: 0.8rem; }
-.reasignar-inline { display: flex; gap: 0.35rem; align-items: center; }
-.input-reasignar {
-  width: 60px; padding: 0.3rem 0.4rem; border-radius: 6px; font-size: 0.8rem;
-  border: 1px solid rgba(255, 255, 255, 0.12); background: rgba(255, 255, 255, 0.04); color: #e5e7eb;
-}
-.btn-confirmar { background: rgba(52, 211, 153, 0.15); color: #34d399; padding: 0.3rem 0.5rem; }
-.btn-cancelar { background: rgba(248, 113, 113, 0.15); color: #f87171; padding: 0.3rem 0.5rem; }
-.texto-tenue { color: #6b7280; font-size: 0.85rem; }
 </style>

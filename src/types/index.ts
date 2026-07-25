@@ -62,6 +62,26 @@ export interface EstadoResponse {
   nombre: string
 }
 
+export interface DepartamentoResponse {
+  id: number
+  nombre: string
+  descripcion: string | null
+  estado: string | null
+}
+
+export interface CrearDepartamentoRequest {
+  nombre: string
+  descripcion?: string
+}
+
+export interface CrearUsuarioRequest {
+  nombre: string
+  email: string
+  password: string
+  nombreRol: string
+  departamento: string
+}
+
 // Roles como constantes, para no comparar strings "a mano" repetidamente
 // en cada componente 
 export const ROLES = {

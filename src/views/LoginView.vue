@@ -2,6 +2,11 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import ThemeToggle from '@/components/ThemeToggle.vue'
+import IconLogo from '@/components/icons/IconLogo.vue'
+import IconEye from '@/components/icons/IconEye.vue'
+import IconEyeOff from '@/components/icons/IconEyeOff.vue'
+import IconAlertCircle from '@/components/icons/IconAlertCircle.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -18,19 +23,21 @@ async function manejarSubmit() {
 
 <template>
   <div class="fondo">
+    <ThemeToggle class="toggle-flotante" />
+
     <form class="card" @submit.prevent="manejarSubmit">
-      <div class="logo">📋</div>
+      <div class="logo"><IconLogo :size="19" /></div>
       <h1>TaskFlow</h1>
       <p class="subtitulo">Sistema de gestión de tareas</p>
 
       <div class="campo">
         <label>Correo electrónico</label>
-        <input v-model="email" type="email" required autocomplete="username" placeholder="correo.com" />
+        <input v-model="email" type="email" required autocomplete="username" placeholder="tu.correo@empresa.com" />
       </div>
 
       <div class="campo">
         <label>Contraseña</label>
-        <div class="input-password">
+        <div class="input-wrapper">
           <input
             v-model="password"
             :type="mostrarPassword ? 'text' : 'password'"
@@ -39,15 +46,17 @@ async function manejarSubmit() {
             placeholder="••••••••"
           />
           <button type="button" class="toggle-password" @click="mostrarPassword = !mostrarPassword">
-            {{ mostrarPassword ? '🙈' : '👁️' }}
+            <IconEyeOff v-if="mostrarPassword" :size="16" />
+            <IconEye v-else :size="16" />
           </button>
         </div>
       </div>
 
-      <p v-if="authStore.error" class="mensaje-error">{{ authStore.error }}</p>
+      <p v-if="authStore.error" class="mensaje-error"><IconAlertCircle :size="15" />{{ authStore.error }}</p>
 
       <button type="submit" class="btn-submit" :disabled="authStore.cargando">
-        {{ authStore.cargando ? 'Ingresando...' : 'Iniciar sesión →' }}
+        <span v-if="authStore.cargando" class="spinner"></span>
+        {{ authStore.cargando ? 'Ingresando...' : 'Iniciar sesión' }}
       </button>
 
       <p class="footer">© 2026 TaskFlow · Sistema interno de gestión</p>
@@ -57,48 +66,61 @@ async function manejarSubmit() {
 
 <style scoped>
 .fondo {
+  position: relative;
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at top, #1e1b4b 0%, #0f0e1a 60%);
+  background: var(--color-bg);
   padding: 1rem;
+}
+
+.toggle-flotante {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+}
+
+@keyframes entrada {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .card {
   width: 100%;
-  max-width: 440px;
-  padding: 2.5rem 2rem;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  color: #e5e7eb;
+  max-width: 380px;
+  padding: 2.25rem 2rem;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-md);
+  color: var(--color-text);
   text-align: center;
+  animation: entrada 0.2s ease both;
 }
 
 .logo {
-  width: 56px;
-  height: 56px;
-  margin: 0 auto 1rem;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #6366f1, #22d3ee);
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 1.1rem;
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
 }
 
 h1 {
-  margin: 0 0 0.25rem;
-  font-size: 1.5rem;
+  margin: 0 0 0.3rem;
+  font-size: 1.3rem;
   font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .subtitulo {
   margin: 0 0 1.75rem;
-  color: #9ca3af;
+  color: var(--color-text-muted);
   font-size: 0.85rem;
 }
 
@@ -109,64 +131,103 @@ h1 {
 
 .campo label {
   display: block;
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: #9ca3af;
+  letter-spacing: 0.02em;
+  color: var(--color-text-muted);
   margin-bottom: 0.35rem;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
 }
 
 .campo input {
   width: 100%;
-  padding: 0.65rem 0.8rem;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
-  color: #e5e7eb;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
   font-size: 0.9rem;
+  font-family: inherit;
   box-sizing: border-box;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.input-wrapper input {
+  padding-right: 2.3rem;
+}
+
+.campo input::placeholder {
+  color: var(--color-text-faint);
+}
+
+.campo input:hover {
+  border-color: var(--color-border-strong);
 }
 
 .campo input:focus {
   outline: none;
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
-}
-
-.input-password {
-  position: relative;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-subtle);
 }
 
 .toggle-password {
   position: absolute;
-  right: 0.6rem;
-  top: 50%;
-  transform: translateY(-50%);
+  right: 0.5rem;
+  display: flex;
+  align-items: center;
   background: none;
   border: none;
+  color: var(--color-text-muted);
   cursor: pointer;
-  font-size: 0.9rem;
+  opacity: 0.85;
+  transition: opacity 0.12s ease;
+}
+
+.toggle-password:hover {
+  opacity: 1;
 }
 
 .mensaje-error {
-  color: #f87171;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--color-danger);
+  background: var(--color-danger-subtle);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.65rem;
   font-size: 0.8rem;
-  margin: 0.5rem 0;
+  margin: 0.2rem 0 1rem;
   text-align: left;
 }
 
+.mensaje-error svg { flex-shrink: 0; }
+
 .btn-submit {
   width: 100%;
-  padding: 0.75rem;
-  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.65rem;
+  margin-top: 0.4rem;
   border: none;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #6366f1, #4f46e5);
-  color: white;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.btn-submit:hover:not(:disabled) {
+  background: var(--color-accent-hover);
 }
 
 .btn-submit:disabled {
@@ -174,9 +235,22 @@ h1 {
   cursor: not-allowed;
 }
 
+.spinner {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: white;
+  animation: girar 0.6s linear infinite;
+}
+
+@keyframes girar {
+  to { transform: rotate(360deg); }
+}
+
 .footer {
   margin-top: 1.5rem;
-  font-size: 0.7rem;
-  color: #6b7280;
+  font-size: 0.72rem;
+  color: var(--color-text-faint);
 }
 </style>

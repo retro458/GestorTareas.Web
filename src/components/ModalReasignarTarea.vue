@@ -2,6 +2,8 @@
 import { ref, onMounted } from 'vue'
 import api from '@/api/axios'
 import { useEmpleados } from '@/composables/useEmpleados'
+import { colorAvatar, inicial } from '@/utils/avatarColor'
+import IconX from '@/components/icons/IconX.vue'
 
 const props = defineProps<{
   tareaId: number
@@ -40,7 +42,7 @@ onMounted(cargarEmpleados)
           <h2>Reasignar tarea</h2>
           <p class="subtitulo">{{ tituloTarea }}</p>
         </div>
-        <button class="btn-cerrar" @click="emit('cerrar')">✕</button>
+        <button class="btn-cerrar" @click="emit('cerrar')"><IconX :size="15" /></button>
       </div>
 
       <p class="etiqueta-seccion">Seleccionar nuevo responsable</p>
@@ -56,7 +58,7 @@ onMounted(cargarEmpleados)
           :disabled="reasignando"
           @click="seleccionar(empleado.id)"
         >
-          <span class="avatar">{{ empleado.nombre.charAt(0).toUpperCase() }}</span>
+          <span class="avatar" :style="{ background: colorAvatar(empleado.nombre) }">{{ inicial(empleado.nombre) }}</span>
           <span class="empleado-info">
             <span class="empleado-nombre">{{ empleado.nombre }}</span>
             <span class="empleado-rol">{{ empleado.nombreRol }}</span>
@@ -75,7 +77,7 @@ onMounted(cargarEmpleados)
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -85,11 +87,12 @@ onMounted(cargarEmpleados)
 .modal {
   width: 100%;
   max-width: 420px;
-  background: #1a1a2e;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
   padding: 1.5rem;
-  color: #e5e7eb;
+  color: var(--color-text);
+  box-shadow: var(--shadow-lg);
 }
 
 .modal-header {
@@ -99,26 +102,28 @@ onMounted(cargarEmpleados)
   margin-bottom: 1rem;
 }
 
-h2 { margin: 0; font-size: 1.1rem; color: #f3f4f6; }
-.subtitulo { margin: 0.2rem 0 0; font-size: 0.85rem; color: #9ca3af; }
+h2 { margin: 0; font-size: 1.1rem; color: var(--color-text); }
+.subtitulo { margin: 0.2rem 0 0; font-size: 0.85rem; color: var(--color-text-muted); }
 
 .btn-cerrar {
-  background: none; border: none; color: #9ca3af;
-  font-size: 1rem; cursor: pointer; padding: 0.2rem;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none; color: var(--color-text-muted);
+  cursor: pointer; padding: 0.3rem;
 }
+.btn-cerrar:hover { color: var(--color-text); }
 
 .etiqueta-seccion {
   font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em;
-  color: #9ca3af; margin: 0 0 0.6rem;
+  color: var(--color-text-faint); margin: 0 0 0.6rem;
 }
 
-.estado-info { color: #9ca3af; font-size: 0.85rem; }
-.mensaje-error { color: #f87171; font-size: 0.85rem; }
+.estado-info { color: var(--color-text-muted); font-size: 0.85rem; }
+.mensaje-error { color: var(--color-danger); font-size: 0.85rem; }
 
 .lista-empleados {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.35rem;
   max-height: 280px;
   overflow-y: auto;
   margin-bottom: 1rem;
@@ -128,42 +133,47 @@ h2 { margin: 0; font-size: 1.1rem; color: #f3f4f6; }
   display: flex;
   align-items: center;
   gap: 0.7rem;
-  padding: 0.6rem 0.7rem;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.03);
+  padding: 0.55rem 0.65rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
   cursor: pointer;
   text-align: left;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
 }
 
 .empleado-item:hover:not(:disabled) {
-  background: rgba(99, 102, 241, 0.12);
-  border-color: rgba(99, 102, 241, 0.3);
+  background: var(--color-accent-subtle);
+  border-color: var(--color-accent);
 }
 
 .empleado-item:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .avatar {
-  width: 32px; height: 32px;
+  width: 30px; height: 30px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #6366f1, #22d3ee);
   display: flex; align-items: center; justify-content: center;
-  font-size: 0.85rem; font-weight: 700; color: white;
+  font-size: 0.8rem; font-weight: 700; color: white;
   flex-shrink: 0;
 }
 
 .empleado-info { display: flex; flex-direction: column; }
-.empleado-nombre { font-size: 0.9rem; font-weight: 600; color: #f3f4f6; }
-.empleado-rol { font-size: 0.75rem; color: #9ca3af; }
+.empleado-nombre { font-size: 0.88rem; font-weight: 600; color: var(--color-text); }
+.empleado-rol { font-size: 0.74rem; color: var(--color-text-faint); }
 
 .btn-cancelar {
   width: 100%;
-  padding: 0.6rem;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
-  color: #e5e7eb;
+  padding: 0.55rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
   cursor: pointer;
   font-size: 0.85rem;
+  transition: background-color 0.12s ease;
+}
+
+.btn-cancelar:hover {
+  background: var(--color-surface-hover);
 }
 </style>

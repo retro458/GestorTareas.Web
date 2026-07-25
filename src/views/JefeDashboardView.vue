@@ -1,19 +1,27 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import api from '@/api/axios'
-import { useAuthStore } from '@/stores/auth'
 import type { TareaResponse, CrearTareaRequest } from '@/types'
+import AppShell from '@/components/layout/AppShell.vue'
 import ModalReasignarTarea from '@/components/ModalReasignarTarea.vue'
-import NotificacionesCampana from '@/components/NotificacionesCampana.vue'
+import ModalCrearDepartamento from '@/components/ModalCrearDepartamento.vue'
+import ModalCrearUsuario from '@/components/ModalCrearUsuario.vue'
 import { useTareasHub } from '@/composables/useTareasHub'
 import { useEmpleados } from '@/composables/useEmpleados'
-const authStore = useAuthStore()
+import { colorAvatar, inicial } from '@/utils/avatarColor'
+import IconClipboardList from '@/components/icons/IconClipboardList.vue'
+import IconCheckCircle from '@/components/icons/IconCheckCircle.vue'
+import IconPlay from '@/components/icons/IconPlay.vue'
+import IconClock from '@/components/icons/IconClock.vue'
+import IconRefresh from '@/components/icons/IconRefresh.vue'
 
 const tareas = ref<TareaResponse[]>([])
 const cargando = ref(false)
 const errorCarga = ref<string | null>(null)
 const modalTareaId = ref<number | null>(null)
 const modalTareaTitulo = ref('')
+const mostrarCrearDepartamento = ref(false)
+const mostrarCrearUsuario = ref(false)
 
 const { notificaciones, quitarNotificacion } = useTareasHub(() => cargarTareas())
 const { empleados, cargarEmpleados } = useEmpleados()
@@ -74,9 +82,13 @@ function colorEstado(estado: string) {
   }
 }
 
-async function cerrarSesion() {
-  await authStore.logout()
-  window.location.href = '/login'
+function colorPrioridad(prioridad: string) {
+  switch (prioridad) {
+    case 'Baja': return 'badge-baja'
+    case 'Media': return 'badge-media'
+    case 'Alta': return 'badge-alta'
+    default: return ''
+  }
 }
 
 onMounted(() => {
@@ -86,218 +98,251 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="fondo">
-    <div class="contenedor">
-      <header class="header">
-        <div>
-          <h1>Panel de {{ authStore.usuario?.rol }}</h1>
-          <p class="bienvenida">Hola, {{ authStore.usuario?.nombre }} 👋</p>
-        </div>
-        <NotificacionesCampana :notificaciones="notificaciones" @quitar="quitarNotificacion" />
-        <button class="btn-secundario" @click="cerrarSesion">Cerrar sesión</button>
-      </header>
-
-      <div class="kpis">
-        <div class="kpi-card">
-          <span class="kpi-icono">📋</span>
-          <div><p class="kpi-numero">{{ totalTareas }}</p><p class="kpi-label">Total tareas</p></div>
-        </div>
-        <div class="kpi-card">
-          <span class="kpi-icono">✅</span>
-          <div><p class="kpi-numero">{{ completadas }}</p><p class="kpi-label">Completadas</p></div>
-        </div>
-        <div class="kpi-card">
-          <span class="kpi-icono">▶️</span>
-          <div><p class="kpi-numero">{{ enProgreso }}</p><p class="kpi-label">En progreso</p></div>
-        </div>
-        <div class="kpi-card">
-          <span class="kpi-icono">⏳</span>
-          <div><p class="kpi-numero">{{ pendientes }}</p><p class="kpi-label">Pendientes</p></div>
-        </div>
+  <AppShell
+    titulo="Panel de tareas"
+    :notificaciones="notificaciones"
+    @quitar-notificacion="quitarNotificacion"
+    @crear-departamento="mostrarCrearDepartamento = true"
+    @crear-usuario="mostrarCrearUsuario = true"
+  >
+    <div class="kpis">
+      <div class="kpi-card">
+        <span class="kpi-icono kpi-icono-neutro"><IconClipboardList :size="19" /></span>
+        <div><p class="kpi-numero">{{ totalTareas }}</p><p class="kpi-label">Total tareas</p></div>
       </div>
-
-      <div class="acciones">
-        <button class="btn-primario" @click="mostrarFormulario = !mostrarFormulario">
-          {{ mostrarFormulario ? 'Cancelar' : '+ Nueva tarea' }}
-        </button>
-        <button class="btn-secundario" @click="cargarTareas" :disabled="cargando">
-          {{ cargando ? 'Actualizando...' : '↻ Actualizar' }}
-        </button>
+      <div class="kpi-card">
+        <span class="kpi-icono kpi-icono-success"><IconCheckCircle :size="19" /></span>
+        <div><p class="kpi-numero">{{ completadas }}</p><p class="kpi-label">Completadas</p></div>
       </div>
-
-      <form v-if="mostrarFormulario" class="form-tarea" @submit.prevent="crearTarea">
-        <div class="campo">
-          <label>Título</label>
-          <input v-model="nuevaTarea.titulo" required placeholder="Ej. Auditar finanzas empresa X" />
-        </div>
-        <div class="campo">
-          <label>Descripción</label>
-          <textarea v-model="nuevaTarea.descripcion" rows="2" placeholder="Detalles de la tarea..."></textarea>
-        </div>
-        <div class="fila">
-          <div class="campo">
-            <label>Empleado asignado</label>
-            <select v-model.number="nuevaTarea.asignadoA" required>
-              <option :value="0" disabled>Selecciona un empleado</option>
-              <option v-for="empleado in empleados" :key="empleado.id" :value="empleado.id">
-                {{ empleado.nombre }} · {{ empleado.nombreRol }}
-              </option>
-            </select>
-          </div>
-          <div class="campo">
-            <label>Prioridad</label>
-            <select v-model.number="nuevaTarea.prioridadId">
-              <option :value="1">Baja</option>
-              <option :value="2">Media</option>
-              <option :value="3">Alta</option>
-            </select>
-          </div>
-          <div class="campo">
-            <label>Fecha límite</label>
-            <input v-model="nuevaTarea.fechaVencimiento" type="date" />
-          </div>
-        </div>
-        <p v-if="errorCreacion" class="mensaje-error">{{ errorCreacion }}</p>
-        <button type="submit" class="btn-primario" :disabled="creando">
-          {{ creando ? 'Creando...' : 'Crear y asignar tarea' }}
-        </button>
-      </form>
-
-      <p v-if="errorCarga" class="mensaje-error">{{ errorCarga }}</p>
-
-      <div class="tabla-wrapper" v-if="tareas.length > 0">
-        <table class="tabla-tareas">
-          <thead>
-            <tr>
-              <th>Título</th><th>Asignado a</th><th>Estado</th><th>Prioridad</th><th>Vencimiento</th><th>Acción</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="tarea in tareas" :key="tarea.id">
-              <td>{{ tarea.titulo }}</td>
-              <td>{{ tarea.asignadoANombre }}</td>
-              <td><span class="badge" :class="colorEstado(tarea.estado)">{{ tarea.estado }}</span></td>
-              <td>{{ tarea.prioridad }}</td>
-              <td>{{ tarea.fechaVencimiento ? new Date(tarea.fechaVencimiento).toLocaleDateString() : '—' }}</td>
-              <td>
-                <button class="btn-mini" @click="abrirModalReasignar(tarea)">Reasignar</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="kpi-card">
+        <span class="kpi-icono kpi-icono-info"><IconPlay :size="19" /></span>
+        <div><p class="kpi-numero">{{ enProgreso }}</p><p class="kpi-label">En progreso</p></div>
       </div>
-      <p v-else-if="!cargando" class="vacio">No hay tareas registradas todavía.</p>
-
-      <ModalReasignarTarea
-        v-if="modalTareaId"
-        :tarea-id="modalTareaId"
-        :titulo-tarea="modalTareaTitulo"
-        @cerrar="modalTareaId = null"
-        @reasignado="() => { modalTareaId = null; cargarTareas() }"
-      />
+      <div class="kpi-card">
+        <span class="kpi-icono kpi-icono-warning"><IconClock :size="19" /></span>
+        <div><p class="kpi-numero">{{ pendientes }}</p><p class="kpi-label">Pendientes</p></div>
+      </div>
     </div>
-  </div>
+
+    <div class="acciones">
+      <button class="btn-primario" @click="mostrarFormulario = !mostrarFormulario">
+        {{ mostrarFormulario ? 'Cancelar' : '+ Nueva tarea' }}
+      </button>
+      <button class="btn-secundario" @click="cargarTareas" :disabled="cargando">
+        <IconRefresh :size="14" />
+        {{ cargando ? 'Actualizando...' : 'Actualizar' }}
+      </button>
+    </div>
+
+    <form v-if="mostrarFormulario" class="form-tarea" @submit.prevent="crearTarea">
+      <div class="campo">
+        <label>Título</label>
+        <input v-model="nuevaTarea.titulo" required placeholder="Ej. Auditar finanzas empresa X" />
+      </div>
+      <div class="campo">
+        <label>Descripción</label>
+        <textarea v-model="nuevaTarea.descripcion" rows="2" placeholder="Detalles de la tarea..."></textarea>
+      </div>
+      <div class="fila">
+        <div class="campo">
+          <label>Empleado asignado</label>
+          <select v-model.number="nuevaTarea.asignadoA" required>
+            <option :value="0" disabled>Selecciona un empleado</option>
+            <option v-for="empleado in empleados" :key="empleado.id" :value="empleado.id">
+              {{ empleado.nombre }} · {{ empleado.nombreRol }}
+            </option>
+          </select>
+        </div>
+        <div class="campo">
+          <label>Prioridad</label>
+          <select v-model.number="nuevaTarea.prioridadId">
+            <option :value="1">Baja</option>
+            <option :value="2">Media</option>
+            <option :value="3">Alta</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label>Fecha límite</label>
+          <input v-model="nuevaTarea.fechaVencimiento" type="date" />
+        </div>
+      </div>
+      <p v-if="errorCreacion" class="mensaje-error">{{ errorCreacion }}</p>
+      <button type="submit" class="btn-primario" :disabled="creando">
+        {{ creando ? 'Creando...' : 'Crear y asignar tarea' }}
+      </button>
+    </form>
+
+    <p v-if="errorCarga" class="mensaje-error">{{ errorCarga }}</p>
+
+    <div class="tabla-wrapper" v-if="tareas.length > 0">
+      <table class="tabla-tareas">
+        <thead>
+          <tr>
+            <th>Tarea</th><th>Asignado a</th><th>Estado</th><th>Prioridad</th><th>Vencimiento</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="tarea in tareas" :key="tarea.id">
+            <td class="celda-titulo">{{ tarea.titulo }}</td>
+            <td>
+              <span class="persona">
+                <span class="avatar-mini" :style="{ background: colorAvatar(tarea.asignadoANombre) }">
+                  {{ inicial(tarea.asignadoANombre) }}
+                </span>
+                {{ tarea.asignadoANombre }}
+              </span>
+            </td>
+            <td><span class="badge" :class="colorEstado(tarea.estado)">{{ tarea.estado }}</span></td>
+            <td><span class="badge" :class="colorPrioridad(tarea.prioridad)">{{ tarea.prioridad }}</span></td>
+            <td class="celda-fecha">{{ tarea.fechaVencimiento ? new Date(tarea.fechaVencimiento).toLocaleDateString() : '—' }}</td>
+            <td>
+              <button class="btn-mini" @click="abrirModalReasignar(tarea)">Reasignar</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p v-else-if="!cargando" class="vacio">No hay tareas registradas todavía.</p>
+
+    <ModalReasignarTarea
+      v-if="modalTareaId"
+      :tarea-id="modalTareaId"
+      :titulo-tarea="modalTareaTitulo"
+      @cerrar="modalTareaId = null"
+      @reasignado="() => { modalTareaId = null; cargarTareas() }"
+    />
+
+    <ModalCrearDepartamento
+      v-if="mostrarCrearDepartamento"
+      @cerrar="mostrarCrearDepartamento = false"
+      @creado="mostrarCrearDepartamento = false"
+    />
+
+    <ModalCrearUsuario
+      v-if="mostrarCrearUsuario"
+      @cerrar="mostrarCrearUsuario = false"
+      @creado="mostrarCrearUsuario = false"
+    />
+  </AppShell>
 </template>
 
 <style scoped>
-.fondo {
-  min-height: 100vh;
-  background: radial-gradient(circle at 20% 20%, rgba(99, 102, 241, 0.12), transparent 40%),
-              radial-gradient(circle at 80% 80%, rgba(34, 211, 238, 0.1), transparent 40%),
-              radial-gradient(circle at top, #1e1b4b 0%, #0f0e1a 60%);
-  padding: 2rem 1rem;
-  color: #e5e7eb;
-  font-family: system-ui, sans-serif;
-}
-
-.contenedor { max-width: 1100px; margin: 0 auto; }
-
-.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.75rem; }
-h1 { margin: 0; font-size: 1.4rem; color: #f3f4f6; }
-.bienvenida { margin: 0.15rem 0 0; color: #9ca3af; font-size: 0.9rem; }
-
 .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
 
 .kpi-card {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
   padding: 1rem;
   display: flex; align-items: center; gap: 0.75rem;
 }
-.kpi-icono { font-size: 1.5rem; }
-.kpi-numero { margin: 0; font-size: 1.4rem; font-weight: 700; color: #f3f4f6; }
-.kpi-label { margin: 0; font-size: 0.75rem; color: #9ca3af; }
+.kpi-icono {
+  display: flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px; border-radius: var(--radius-md); flex-shrink: 0;
+}
+.kpi-icono-neutro { background: var(--color-accent-subtle); color: var(--color-accent); }
+.kpi-icono-success { background: var(--color-success-subtle); color: var(--color-success); }
+.kpi-icono-info { background: var(--color-info-subtle); color: var(--color-info); }
+.kpi-icono-warning { background: var(--color-warning-subtle); color: var(--color-warning); }
+.kpi-numero { margin: 0; font-size: 1.35rem; font-weight: 700; color: var(--color-text); font-variant-numeric: tabular-nums; }
+.kpi-label { margin: 0; font-size: 0.75rem; color: var(--color-text-muted); }
 
 .acciones { display: flex; gap: 0.75rem; margin-bottom: 1.25rem; }
 
 .btn-primario, .btn-secundario, .btn-mini {
-  padding: 0.55rem 1rem; border-radius: 8px; border: none;
-  font-size: 0.9rem; font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.55rem 1rem; border-radius: var(--radius-sm); border: 1px solid transparent;
+  font-size: 0.88rem; font-weight: 600; cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
 }
-.btn-primario { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; }
+.btn-primario { background: var(--color-accent); color: var(--color-text-on-accent); }
+.btn-primario:hover:not(:disabled) { background: var(--color-accent-hover); }
 .btn-secundario {
-  background: rgba(255, 255, 255, 0.06);
-  color: #e5e7eb;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-border);
 }
+.btn-secundario:hover:not(:disabled) { background: var(--color-surface-hover); }
 .btn-primario:disabled, .btn-secundario:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .form-tarea {
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
   padding: 1.25rem;
   margin-bottom: 1.5rem;
 }
 
 .campo { margin-bottom: 0.9rem; display: flex; flex-direction: column; gap: 0.3rem; }
-.campo label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: #9ca3af; }
+.campo label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--color-text-muted); }
 .campo input, .campo textarea, .campo select {
   padding: 0.55rem 0.7rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.04);
-  color: #e5e7eb;
-  font-size: 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.88rem;
   font-family: inherit;
 }
 .campo input:focus, .campo textarea:focus, .campo select:focus {
-  outline: none; border-color: #6366f1;
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-subtle);
 }
 
 .fila { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
-.mensaje-error { color: #f87171; font-size: 0.85rem; }
-.vacio { color: #6b7280; text-align: center; padding: 2rem 0; }
+.mensaje-error {
+  color: var(--color-danger);
+  background: var(--color-danger-subtle);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.65rem;
+  font-size: 0.82rem;
+}
+.vacio { color: var(--color-text-faint); text-align: center; padding: 2rem 0; }
 
 .tabla-wrapper {
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
   overflow: hidden;
+  overflow-x: auto;
 }
 
 .tabla-tareas { width: 100%; border-collapse: collapse; }
 .tabla-tareas th {
   text-align: left; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em;
-  color: #9ca3af; border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 0.75rem 1rem; background: rgba(255, 255, 255, 0.02);
+  color: var(--color-text-faint); border-bottom: 1px solid var(--color-border);
+  padding: 0.7rem 1rem; background: var(--color-surface-sunken);
 }
 .tabla-tareas td {
-  padding: 0.75rem 1rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  font-size: 0.88rem; color: #e5e7eb;
+  padding: 0.7rem 1rem; border-bottom: 1px solid var(--color-border);
+  font-size: 0.86rem; color: var(--color-text);
 }
 .tabla-tareas tr:last-child td { border-bottom: none; }
+.tabla-tareas tr:hover td { background: var(--color-surface-hover); }
+.celda-titulo { font-weight: 500; }
+.celda-fecha { font-variant-numeric: tabular-nums; color: var(--color-text-muted); }
 
-.badge { padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.72rem; font-weight: 600; }
-.badge-pendiente { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
-.badge-progreso { background: rgba(96, 165, 250, 0.15); color: #60a5fa; }
-.badge-revision { background: rgba(168, 85, 247, 0.15); color: #c084fc; }
-.badge-completada { background: rgba(52, 211, 153, 0.15); color: #34d399; }
-.badge-cancelada { background: rgba(248, 113, 113, 0.15); color: #f87171; }
+.persona { display: flex; align-items: center; gap: 0.5rem; }
+.avatar-mini {
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.65rem; font-weight: 700; color: white;
+  flex-shrink: 0;
+}
 
-.btn-mini { background: rgba(99, 102, 241, 0.15); color: #a5b4fc; padding: 0.3rem 0.6rem; font-size: 0.8rem; }
+.badge { padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
+.badge-pendiente { background: var(--color-warning-subtle); color: var(--color-warning); }
+.badge-progreso { background: var(--color-info-subtle); color: var(--color-info); }
+.badge-revision { background: var(--color-highlight-subtle); color: var(--color-highlight); }
+.badge-completada { background: var(--color-success-subtle); color: var(--color-success); }
+.badge-cancelada { background: var(--color-danger-subtle); color: var(--color-danger); }
+
+.badge-baja { background: var(--color-surface-sunken); color: var(--color-text-muted); }
+.badge-media { background: var(--color-warning-subtle); color: var(--color-warning); }
+.badge-alta { background: var(--color-danger-subtle); color: var(--color-danger); }
+
+.btn-mini { background: var(--color-accent-subtle); color: var(--color-accent); padding: 0.3rem 0.6rem; font-size: 0.78rem; }
+.btn-mini:hover { background: var(--color-accent); color: var(--color-text-on-accent); }
 </style>

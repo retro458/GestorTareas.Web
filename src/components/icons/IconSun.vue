@@ -1,0 +1,17 @@
+<script setup lang="ts">
+withDefaults(defineProps<{ size?: number }>(), { size: 18 })
+</script>
+
+<template>
+  <svg :width="size" :height="size" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="4.2" />
+    <line x1="12" y1="2.5" x2="12" y2="5" />
+    <line x1="12" y1="19" x2="12" y2="21.5" />
+    <line x1="2.5" y1="12" x2="5" y2="12" />
+    <line x1="19" y1="12" x2="21.5" y2="12" />
+    <line x1="5.3" y1="5.3" x2="7" y2="7" />
+    <line x1="17" y1="17" x2="18.7" y2="18.7" />
+    <line x1="5.3" y1="18.7" x2="7" y2="17" />
+    <line x1="17" y1="7" x2="18.7" y2="5.3" />
+  </svg>
+</template>

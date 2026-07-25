@@ -4,7 +4,7 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 import { useAuthStore } from './stores/auth'
-import './style.css' // ajusta o elimina segun tu CSS base
+import './style.css' 
  
 const app = createApp(App)
 const pinia = createPinia()

@@ -11,6 +11,12 @@ const routes: RouteRecordRaw[] = [
     meta: { soloInvitados: true } // si ya esta logueado, no puede volver aqui
   },
   {
+    path: '/verificar-cuenta',
+    name: 'verificar-cuenta',
+    component: () => import('@/views/VerificarCuentaView.vue'),
+    meta: { soloInvitados: true }
+  },
+  {
     path: '/jefe',
     name: 'jefe-dashboard',
     component: () => import('@/views/JefeDashboardView.vue'),

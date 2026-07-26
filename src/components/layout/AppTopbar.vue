@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 import NotificacionesCampana from '@/components/NotificacionesCampana.vue'
+import ModalConfirmacion from '@/components/ModalConfirmacion.vue'
 import type { NotificacionResponse } from '@/types'
 import { inicial } from '@/utils/avatarColor'
 import IconPower from '@/components/icons/IconPower.vue'
@@ -16,8 +18,10 @@ const emit = defineEmits<{
 }>()
 
 const authStore = useAuthStore()
+const mostrarConfirmacion = ref(false)
 
 async function cerrarSesion() {
+  mostrarConfirmacion.value = false
   await authStore.logout()
   window.location.href = '/login'
 }
@@ -41,10 +45,20 @@ async function cerrarSesion() {
         </span>
       </div>
 
-      <button class="btn-salir" title="Cerrar sesión" @click="cerrarSesion">
+      <button class="btn-salir" title="Cerrar sesión" @click="mostrarConfirmacion = true">
         <IconPower :size="17" />
       </button>
     </div>
+
+    <ModalConfirmacion
+      v-if="mostrarConfirmacion"
+      titulo="Cerrar sesión"
+      mensaje="¿Estás seguro de que quieres cerrar sesión?"
+      texto-confirmar="Cerrar sesión"
+      peligroso
+      @confirmar="cerrarSesion"
+      @cancelar="mostrarConfirmacion = false"
+    />
   </header>
 </template>
 

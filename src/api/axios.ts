@@ -15,7 +15,7 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       if (window.location.pathname !== '/login') {
-        window.location.href = '/login'
+        window.location.href = '/login?expirado=1'
       }
     }
     return Promise.reject(error)

@@ -2,12 +2,15 @@
 import { ref, computed, onMounted } from 'vue'
 import api from '@/api/axios'
 import type { TareaResponse, CrearTareaRequest } from '@/types'
+import { ROLES } from '@/types'
 import AppShell from '@/components/layout/AppShell.vue'
 import ModalReasignarTarea from '@/components/ModalReasignarTarea.vue'
 import ModalCrearDepartamento from '@/components/ModalCrearDepartamento.vue'
 import ModalCrearUsuario from '@/components/ModalCrearUsuario.vue'
 import { useTareasHub } from '@/composables/useTareasHub'
 import { useEmpleados } from '@/composables/useEmpleados'
+import { useDepartamentos } from '@/composables/useDepartamentos'
+import { useAuthStore } from '@/stores/auth'
 import { colorAvatar, inicial } from '@/utils/avatarColor'
 import IconClipboardList from '@/components/icons/IconClipboardList.vue'
 import IconCheckCircle from '@/components/icons/IconCheckCircle.vue'
@@ -25,10 +28,27 @@ const mostrarCrearUsuario = ref(false)
 
 const { notificaciones, quitarNotificacion } = useTareasHub(() => cargarTareas())
 const { empleados, cargarEmpleados } = useEmpleados()
+const { departamentos, cargarDepartamentos } = useDepartamentos()
+const authStore = useAuthStore()
+
+const esJefe = computed(() => authStore.usuario?.rol === ROLES.JEFE)
+
+// Un Jefe ve todos los departamentos; un Encargado solo a los que pertenece.
+const departamentosAccesibles = computed(() => {
+  if (esJefe.value) return departamentos.value
+  const propios = authStore.usuario?.departamentosIds ?? []
+  return departamentos.value.filter(d => propios.includes(d.id))
+})
+
+const departamentoFiltroId = ref<number | null>(null)
 
 function abrirModalReasignar(tarea: TareaResponse) {
   modalTareaId.value = tarea.id
   modalTareaTitulo.value = tarea.titulo
+}
+
+function nombreDepartamento(departamentoId: number | null) {
+  return departamentos.value.find(d => d.id === departamentoId)?.nombre ?? '—'
 }
 
 const totalTareas = computed(() => tareas.value.length)
@@ -38,7 +58,7 @@ const pendientes = computed(() => tareas.value.filter(t => t.estado === 'Pendien
 
 const mostrarFormulario = ref(false)
 const nuevaTarea = ref<CrearTareaRequest>({
-  titulo: '', descripcion: '', asignadoA: 0, prioridadId: 2, fechaVencimiento: undefined
+  titulo: '', descripcion: '', asignadoA: 0, departamentoId: 0, prioridadId: 2, fechaVencimiento: undefined
 })
 const creando = ref(false)
 const errorCreacion = ref<string | null>(null)
@@ -47,7 +67,9 @@ async function cargarTareas() {
   cargando.value = true
   errorCarga.value = null
   try {
-    const { data } = await api.get<TareaResponse[]>('/tareas/obtener')
+    const { data } = departamentoFiltroId.value
+      ? await api.get<TareaResponse[]>(`/tareas/departamento/${departamentoFiltroId.value}`)
+      : await api.get<TareaResponse[]>('/tareas/obtener')
     tareas.value = data
   } catch {
     errorCarga.value = 'No se pudieron cargar las tareas.'
@@ -61,7 +83,7 @@ async function crearTarea() {
   errorCreacion.value = null
   try {
     await api.post('/tareas/crear', nuevaTarea.value)
-    nuevaTarea.value = { titulo: '', descripcion: '', asignadoA: 0, prioridadId: 2, fechaVencimiento: undefined }
+    nuevaTarea.value = { titulo: '', descripcion: '', asignadoA: 0, departamentoId: 0, prioridadId: 2, fechaVencimiento: undefined }
     mostrarFormulario.value = false
     await cargarTareas()
   } catch (err: any) {
@@ -92,8 +114,16 @@ function colorPrioridad(prioridad: string) {
 }
 
 onMounted(() => {
+  // Un Encargado no tiene acceso a /tareas/obtener (da 401); arrancamos
+  // el filtro en su primer departamento para que la carga inicial use
+  // /tareas/departamento/{id} en vez del endpoint general. Un Jefe si
+  // puede usar /tareas/obtener, asi que su filtro arranca en "Todos".
+  if (!esJefe.value) {
+    departamentoFiltroId.value = authStore.usuario?.departamentosIds?.[0] ?? null
+  }
   cargarTareas()
   cargarEmpleados()
+  cargarDepartamentos()
 })
 </script>
 
@@ -132,6 +162,15 @@ onMounted(() => {
         <IconRefresh :size="14" />
         {{ cargando ? 'Actualizando...' : 'Actualizar' }}
       </button>
+      <div class="campo campo-filtro">
+        <label>Departamento</label>
+        <select v-model.number="departamentoFiltroId" @change="cargarTareas">
+          <option v-if="esJefe" :value="null">Todos los departamentos</option>
+          <option v-for="depto in departamentosAccesibles" :key="depto.id" :value="depto.id">
+            {{ depto.nombre }}
+          </option>
+        </select>
+      </div>
     </div>
 
     <form v-if="mostrarFormulario" class="form-tarea" @submit.prevent="crearTarea">
@@ -150,6 +189,15 @@ onMounted(() => {
             <option :value="0" disabled>Selecciona un empleado</option>
             <option v-for="empleado in empleados" :key="empleado.id" :value="empleado.id">
               {{ empleado.nombre }} · {{ empleado.nombreRol }}
+            </option>
+          </select>
+        </div>
+        <div class="campo">
+          <label>Departamento</label>
+          <select v-model.number="nuevaTarea.departamentoId" required>
+            <option :value="0" disabled>Selecciona un departamento</option>
+            <option v-for="depto in departamentosAccesibles" :key="depto.id" :value="depto.id">
+              {{ depto.nombre }}
             </option>
           </select>
         </div>
@@ -189,7 +237,10 @@ onMounted(() => {
                 <span class="avatar-mini" :style="{ background: colorAvatar(tarea.asignadoANombre) }">
                   {{ inicial(tarea.asignadoANombre) }}
                 </span>
-                {{ tarea.asignadoANombre }}
+                <span class="persona-info">
+                  <span class="persona-nombre">{{ tarea.asignadoANombre }}</span>
+                  <span class="persona-departamento">{{ nombreDepartamento(tarea.departamentoId) }}</span>
+                </span>
               </span>
             </td>
             <td><span class="badge" :class="colorEstado(tarea.estado)">{{ tarea.estado }}</span></td>
@@ -221,7 +272,7 @@ onMounted(() => {
     <ModalCrearUsuario
       v-if="mostrarCrearUsuario"
       @cerrar="mostrarCrearUsuario = false"
-      @creado="mostrarCrearUsuario = false"
+      @creado="() => { mostrarCrearUsuario = false; cargarEmpleados() }"
     />
   </AppShell>
 </template>
@@ -247,7 +298,30 @@ onMounted(() => {
 .kpi-numero { margin: 0; font-size: 1.35rem; font-weight: 700; color: var(--color-text); font-variant-numeric: tabular-nums; }
 .kpi-label { margin: 0; font-size: 0.75rem; color: var(--color-text-muted); }
 
-.acciones { display: flex; gap: 0.75rem; margin-bottom: 1.25rem; }
+.acciones { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem; }
+
+.campo-filtro {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0;
+}
+.campo-filtro label { margin: 0; white-space: nowrap; }
+.campo-filtro select {
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.85rem;
+  font-family: inherit;
+}
+.campo-filtro select:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-subtle);
+}
 
 .btn-primario, .btn-secundario, .btn-mini {
   display: inline-flex; align-items: center; gap: 0.4rem;
@@ -290,7 +364,7 @@ onMounted(() => {
   box-shadow: 0 0 0 3px var(--color-accent-subtle);
 }
 
-.fila { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+.fila { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; }
 .mensaje-error {
   color: var(--color-danger);
   background: var(--color-danger-subtle);
@@ -331,6 +405,9 @@ onMounted(() => {
   font-size: 0.65rem; font-weight: 700; color: white;
   flex-shrink: 0;
 }
+.persona-info { display: flex; flex-direction: column; line-height: 1.25; }
+.persona-nombre { font-size: 0.86rem; color: var(--color-text); }
+.persona-departamento { font-size: 0.72rem; color: var(--color-text-faint); }
 
 .badge { padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
 .badge-pendiente { background: var(--color-warning-subtle); color: var(--color-warning); }

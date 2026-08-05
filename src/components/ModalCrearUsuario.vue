@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import api from '@/api/axios'
 import { useAuthStore } from '@/stores/auth'
 import { useDepartamentos } from '@/composables/useDepartamentos'
@@ -23,27 +23,36 @@ const ROLES_DISPONIBLES = [ROLES.EMPLEADO, ROLES.ENCARGADO]
 
 const form = ref<CrearUsuarioRequest>({
   nombre: '',
-  email: '',
+  nombreUsuario: '',
   password: '',
   nombreRol: ROLES.EMPLEADO,
-  departamento: ''
+  departamentosIds: []
 })
 
 const guardando = ref(false)
 const error = ref<string | null>(null)
 const exito = ref(false)
 
-const nombreDepartamentoPropio = computed(() =>
-  departamentos.value.find(d => d.id === authStore.usuario?.departamentoId)?.nombre ?? ''
-)
+// Un Jefe puede marcar cualquier departamento; un Encargado solo los suyos.
+const departamentosDisponibles = computed(() => {
+  if (esJefe.value) return departamentos.value
+  const propios = authStore.usuario?.departamentosIds ?? []
+  return departamentos.value.filter(d => propios.includes(d.id))
+})
 
-watch(nombreDepartamentoPropio, (nombre) => {
-  if (!esJefe.value && nombre) {
-    form.value.departamento = nombre
+function alternarDepartamento(id: number, marcado: boolean) {
+  if (marcado) {
+    if (!form.value.departamentosIds.includes(id)) form.value.departamentosIds.push(id)
+  } else {
+    form.value.departamentosIds = form.value.departamentosIds.filter(d => d !== id)
   }
-}, { immediate: true })
+}
 
 async function guardar() {
+  if (form.value.departamentosIds.length === 0) {
+    error.value = 'Selecciona al menos un departamento.'
+    return
+  }
   guardando.value = true
   error.value = null
   try {
@@ -77,8 +86,8 @@ onMounted(cargarDepartamentos)
       </div>
 
       <div class="campo">
-        <label>Correo electrónico</label>
-        <input v-model="form.email" type="email" required placeholder="maria.torres@empresa.com" />
+        <label>Nombre de usuario</label>
+        <input v-model="form.nombreUsuario" required placeholder="Ej. maria.torres" />
       </div>
 
       <div class="campo">
@@ -86,25 +95,26 @@ onMounted(cargarDepartamentos)
         <input v-model="form.password" type="password" required minlength="6" placeholder="••••••••" />
       </div>
 
-      <div class="fila">
-        <div class="campo">
-          <label>Rol</label>
-          <select v-model="form.nombreRol">
-            <option v-for="rol in ROLES_DISPONIBLES" :key="rol" :value="rol">{{ rol }}</option>
-          </select>
-        </div>
+      <div class="campo">
+        <label>Rol</label>
+        <select v-model="form.nombreRol">
+          <option v-for="rol in ROLES_DISPONIBLES" :key="rol" :value="rol">{{ rol }}</option>
+        </select>
+      </div>
 
-        <div class="campo" v-if="esJefe">
-          <label>Departamento</label>
-          <select v-model="form.departamento" required>
-            <option value="" disabled>Selecciona un departamento</option>
-            <option v-for="depto in departamentos" :key="depto.id" :value="depto.nombre">{{ depto.nombre }}</option>
-          </select>
-        </div>
-
-        <div class="campo" v-else>
-          <label>Departamento</label>
-          <div class="valor-fijo">{{ nombreDepartamentoPropio || 'Cargando...' }}</div>
+      <div class="campo">
+        <label>Departamentos</label>
+        <div class="lista-checkboxes">
+          <label v-for="depto in departamentosDisponibles" :key="depto.id" class="checkbox-item">
+            <input
+              type="checkbox"
+              :value="depto.id"
+              :checked="form.departamentosIds.includes(depto.id)"
+              @change="alternarDepartamento(depto.id, ($event.target as HTMLInputElement).checked)"
+            />
+            {{ depto.nombre }}
+          </label>
+          <p v-if="departamentosDisponibles.length === 0" class="valor-fijo">No hay departamentos disponibles.</p>
         </div>
       </div>
 
@@ -190,7 +200,34 @@ h2 { margin: 0; font-size: 1.1rem; color: var(--color-text); }
   font-size: 0.88rem;
 }
 
-.fila { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.lista-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 160px;
+  overflow-y: auto;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.86rem;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.checkbox-item input[type='checkbox'] {
+  width: auto;
+  accent-color: var(--color-accent);
+}
 
 .mensaje-error {
   color: var(--color-danger);

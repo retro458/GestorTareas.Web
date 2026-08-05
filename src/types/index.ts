@@ -3,18 +3,18 @@
 // Si cambias un DTO en el backend, actualiza aqui tambien.
  
 export interface LoginRequest {
-  email: string
+  nombreUsuario: string
   password: string
 }
- 
+
 export interface LoginResponse {
   id: number
   nombre: string
   email: string
   rol: string
-  departamentoId: number | null
+  departamentosIds: number[]
 }
- 
+
 export interface TareaResponse {
   id: number
   titulo: string
@@ -22,15 +22,17 @@ export interface TareaResponse {
   estado: string
   prioridad: string
   asignadoA: number
+  departamentoId: number | null
   asignadoANombre: string
   fechaVencimiento: string | null // ISO string, se parsea con new Date() donde se necesite
   fechaCreacion: string
 }
- 
+
 export interface CrearTareaRequest {
   titulo: string
   descripcion?: string
   asignadoA: number
+  departamentoId: number
   prioridadId: number
   fechaVencimiento?: string
 }
@@ -76,10 +78,10 @@ export interface CrearDepartamentoRequest {
 
 export interface CrearUsuarioRequest {
   nombre: string
-  email: string
+  nombreUsuario: string
   password: string
   nombreRol: string
-  departamento: string
+  departamentosIds: number[]
 }
 
 // Roles como constantes, para no comparar strings "a mano" repetidamente

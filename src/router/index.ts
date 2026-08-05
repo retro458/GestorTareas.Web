@@ -11,10 +11,9 @@ const routes: RouteRecordRaw[] = [
     meta: { soloInvitados: true } // si ya esta logueado, no puede volver aqui
   },
   {
-    path: '/verificar-cuenta',
-    name: 'verificar-cuenta',
-    component: () => import('@/views/VerificarCuentaView.vue'),
-    meta: { soloInvitados: true }
+    path: '/sesion-expirada',
+    name: 'sesion-expirada',
+    component: () => import('@/views/SesionExpiradaView.vue')
   },
   {
     path: '/jefe',
@@ -63,17 +62,17 @@ const router = createRouter({
 // no son la barrera de seguridad real. El backend sigue validando
 // cada request con [Authorize(Roles=...)] independientemente de que
 // el frontend deje o no ver la ruta. 
-router.beforeEach((to, _from, next) => {
+router.beforeEach((to) => {
   const auth = useAuthStore()
 
   // Ruta solo para invitados (login)
   if (to.meta.soloInvitados && auth.estaAutenticado) {
-    return next(auth.esJefeOEncargado ? '/jefe' : '/empleado')
+    return auth.esJefeOEncargado ? '/jefe' : '/empleado'
   }
 
   // Ruta que requiere autenticacion pero no hay usuario -> al login
   if (to.meta.requiereAuth && !auth.estaAutenticado) {
-    return next('/login')
+    return '/login'
   }
 
   // Ruta con restriccion de roles
@@ -81,11 +80,11 @@ router.beforeEach((to, _from, next) => {
   if (rolesPermitidos && auth.usuario) {
     if (!rolesPermitidos.includes(auth.usuario.rol)) {
       // Usuario logueado pero rol incorrecto -> mandalo a su propio dashboard
-      return next(auth.esJefeOEncargado ? '/jefe' : '/empleado')
+      return auth.esJefeOEncargado ? '/jefe' : '/empleado'
     }
   }
 
-  next()
+  return true
 })
 
 export default router

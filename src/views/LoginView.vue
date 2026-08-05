@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 import IconLogo from '@/components/icons/IconLogo.vue'
@@ -9,16 +9,14 @@ import IconEyeOff from '@/components/icons/IconEyeOff.vue'
 import IconAlertCircle from '@/components/icons/IconAlertCircle.vue'
 
 const router = useRouter()
-const route = useRoute()
 const authStore = useAuthStore()
 
-const email = ref('')
+const nombreUsuario = ref('')
 const password = ref('')
 const mostrarPassword = ref(false)
-const sesionExpirada = ref(route.query.expirado === '1')
 
 async function manejarSubmit() {
-  const exito = await authStore.login({ email: email.value, password: password.value })
+  const exito = await authStore.login({ nombreUsuario: nombreUsuario.value, password: password.value })
   if (exito) router.push('/')
 }
 </script>
@@ -30,11 +28,9 @@ async function manejarSubmit() {
     <form class="card" @submit.prevent="manejarSubmit">
       <div class="logo"><IconLogo :size="19" /></div>
 
-      <p v-if="sesionExpirada" class="mensaje-aviso"><IconAlertCircle :size="15" />Tu sesión expiró. Ingresa de nuevo para continuar.</p>
-
       <div class="campo">
-        <label>Correo electrónico</label>
-        <input v-model="email" type="email" required autocomplete="username" placeholder="tu.correo@empresa.com" />
+        <label>Nombre de usuario</label>
+        <input v-model="nombreUsuario" type="text" required autocomplete="username" placeholder="jperez" />
       </div>
 
       <div class="campo">
@@ -196,22 +192,6 @@ async function manejarSubmit() {
 }
 
 .mensaje-error svg { flex-shrink: 0; }
-
-.mensaje-aviso {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  color: var(--color-warning);
-  background: var(--color-warning-subtle);
-  border: 1px solid var(--color-warning);
-  border-radius: var(--radius-sm);
-  padding: 0.5rem 0.65rem;
-  font-size: 0.8rem;
-  margin: 0 0 1.1rem;
-  text-align: left;
-}
-
-.mensaje-aviso svg { flex-shrink: 0; }
 
 .btn-submit {
   width: 100%;

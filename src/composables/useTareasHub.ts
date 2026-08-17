@@ -1,13 +1,17 @@
 import { ref, onUnmounted } from 'vue'
 import * as signalR from '@microsoft/signalr'
 import api from '@/api/axios'
-import type { NotificacionResponse } from '@/types'
+import type { NotificacionResponse, ComentarioResponse, ComentarioEliminadoEvento, EventoComentario } from '@/types'
 
 export type NotificacionEvento = NotificacionResponse
 
 export function useTareasHub(onTareaActualizada?: () => void) {
   const notificaciones = ref<NotificacionEvento[]>([])
   const conectado = ref(false)
+  // Ultimo evento de comentario recibido (nuevo/editado/eliminado). Los
+  // dashboards lo reenvian como prop a ModalDetalleTarea, que filtra por
+  // tareaId ya que este hub no esta scopeado a una tarea en particular.
+  const eventoComentario = ref<EventoComentario | null>(null)
 
   async function cargarNotificacionesPendientes() {
     try {
@@ -33,6 +37,16 @@ export function useTareasHub(onTareaActualizada?: () => void) {
     onTareaActualizada?.()
   })
 
+  connection.on('NuevoComentario', (comentario: ComentarioResponse) => {
+    eventoComentario.value = { tipo: 'nuevo', payload: comentario }
+  })
+  connection.on('ComentarioEditado', (comentario: ComentarioResponse) => {
+    eventoComentario.value = { tipo: 'editado', payload: comentario }
+  })
+  connection.on('ComentarioEliminado', (evento: ComentarioEliminadoEvento) => {
+    eventoComentario.value = { tipo: 'eliminado', payload: evento }
+  })
+
   connection.onreconnected(() => { conectado.value = true })
   connection.onclose(() => { conectado.value = false })
 
@@ -50,5 +64,5 @@ export function useTareasHub(onTareaActualizada?: () => void) {
     notificaciones.value = notificaciones.value.filter(n => n.id !== id)
   }
 
-  return { notificaciones, conectado, quitarNotificacion }
+  return { notificaciones, conectado, quitarNotificacion, eventoComentario }
 }

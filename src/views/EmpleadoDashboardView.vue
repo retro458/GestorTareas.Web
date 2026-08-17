@@ -3,16 +3,25 @@ import { ref, computed, onMounted } from 'vue'
 import api from '@/api/axios'
 import type { TareaResponse } from '@/types'
 import AppShell from '@/components/layout/AppShell.vue'
+import ModalDetalleTarea from '@/components/ModalDetalleTarea.vue'
+import BadgeAtraso from '@/components/BadgeAtraso.vue'
 import { useTareasHub } from '@/composables/useTareasHub'
 import { useEstados } from '@/composables/useEstados'
 import IconRefresh from '@/components/icons/IconRefresh.vue'
+import IconEye from '@/components/icons/IconEye.vue'
 
 const tareas = ref<TareaResponse[]>([])
 const cargando = ref(false)
 const errorCarga = ref<string | null>(null)
 const actualizandoId = ref<number | null>(null)
 
-const { notificaciones, quitarNotificacion } = useTareasHub(() => cargarTareas())
+const pestanaActiva = ref<'activas' | 'completadas'>('activas')
+const tareasCompletadas = ref<TareaResponse[]>([])
+const cargandoCompletadas = ref(false)
+const errorCompletadas = ref<string | null>(null)
+const tareaDetalleSeleccionada = ref<TareaResponse | null>(null)
+
+const { notificaciones, quitarNotificacion, eventoComentario } = useTareasHub(() => { cargarTareas(); cargarCompletadas() })
 const { estados, cargarEstados } = useEstados()
 
 // Un empleado no cancela sus propias tareas, eso queda a criterio de Jefe/Encargado
@@ -35,13 +44,33 @@ async function cambiarEstado(tareaId: number, estadoId: number) {
   actualizandoId.value = tareaId
   try {
     await api.patch(`/tareas/${tareaId}/estado`, { estadoId })
-    await cargarTareas()
+    await Promise.all([cargarTareas(), cargarCompletadas()])
   } catch (err: any) {
     alert(err.response?.data?.error ?? 'No se pudo actualizar el estado.')
   } finally {
     actualizandoId.value = null
   }
 }
+
+async function cargarCompletadas() {
+  cargandoCompletadas.value = true
+  errorCompletadas.value = null
+  try {
+    const { data } = await api.get<TareaResponse[]>('/tareas/completadas')
+    tareasCompletadas.value = data
+  } catch {
+    errorCompletadas.value = 'No se pudieron cargar las tareas completadas.'
+  } finally {
+    cargandoCompletadas.value = false
+  }
+}
+
+async function actualizarTodo() {
+  await Promise.all([cargarTareas(), cargarCompletadas()])
+}
+
+const tareasActivasMostradas = computed(() => tareas.value.filter(t => t.estado !== 'Completada'))
+const tareasMostradas = computed(() => pestanaActiva.value === 'activas' ? tareasActivasMostradas.value : tareasCompletadas.value)
 
 function colorEstado(estado: string) {
   switch (estado) {
@@ -69,6 +98,7 @@ function esEstadoFinal(estado: string) {
 
 onMounted(() => {
   cargarTareas()
+  cargarCompletadas()
   cargarEstados()
 })
 </script>
@@ -76,21 +106,32 @@ onMounted(() => {
 <template>
   <AppShell titulo="Mis tareas" :notificaciones="notificaciones" @quitar-notificacion="quitarNotificacion">
     <div class="acciones">
-      <button class="btn-secundario" @click="cargarTareas" :disabled="cargando">
+      <button class="btn-secundario" @click="actualizarTodo" :disabled="cargando || cargandoCompletadas">
         <IconRefresh :size="14" />
-        {{ cargando ? 'Actualizando...' : 'Actualizar' }}
+        {{ (cargando || cargandoCompletadas) ? 'Actualizando...' : 'Actualizar' }}
       </button>
     </div>
 
-    <p v-if="errorCarga" class="mensaje-error">{{ errorCarga }}</p>
+    <div class="tabs">
+      <button class="tab" :class="{ 'tab-activa': pestanaActiva === 'activas' }" @click="pestanaActiva = 'activas'">
+        Activas
+      </button>
+      <button class="tab" :class="{ 'tab-activa': pestanaActiva === 'completadas' }" @click="pestanaActiva = 'completadas'">
+        Completadas
+      </button>
+    </div>
 
-    <div class="lista-tareas" v-if="tareas.length > 0">
-      <div v-for="tarea in tareas" :key="tarea.id" class="tarea-card">
+    <p v-if="pestanaActiva === 'activas' && errorCarga" class="mensaje-error">{{ errorCarga }}</p>
+    <p v-if="pestanaActiva === 'completadas' && errorCompletadas" class="mensaje-error">{{ errorCompletadas }}</p>
+
+    <div class="lista-tareas" v-if="tareasMostradas.length > 0">
+      <div v-for="tarea in tareasMostradas" :key="tarea.id" class="tarea-card">
         <div class="tarea-info">
           <div class="tarea-titulo-fila">
             <h3>{{ tarea.titulo }}</h3>
             <span class="badge" :class="colorEstado(tarea.estado)">{{ tarea.estado }}</span>
             <span class="badge" :class="colorPrioridad(tarea.prioridad)">{{ tarea.prioridad }}</span>
+            <BadgeAtraso :dias-atraso="tarea.diaAtraso" />
           </div>
           <p v-if="tarea.descripcion" class="tarea-descripcion">{{ tarea.descripcion }}</p>
           <div class="tarea-meta" v-if="tarea.fechaVencimiento">
@@ -99,20 +140,35 @@ onMounted(() => {
         </div>
 
         <div class="tarea-accion">
-          <label>Actualizar estado</label>
-          <select
-            :value="estados.find(e => e.nombre === tarea.estado)?.id"
-            :disabled="actualizandoId === tarea.id || esEstadoFinal(tarea.estado)"
-            @change="cambiarEstado(tarea.id, Number(($event.target as HTMLSelectElement).value))"
-          >
-            <option v-for="estado in estadosDisponibles" :key="estado.id" :value="estado.id">
-              {{ estado.nombre }}
-            </option>
-          </select>
+          <button class="btn-mini" @click="tareaDetalleSeleccionada = tarea">
+            <IconEye :size="13" />
+            Detalle
+          </button>
+          <template v-if="pestanaActiva === 'activas'">
+            <label>Actualizar estado</label>
+            <select
+              :value="estados.find(e => e.nombre === tarea.estado)?.id"
+              :disabled="actualizandoId === tarea.id || esEstadoFinal(tarea.estado)"
+              @change="cambiarEstado(tarea.id, Number(($event.target as HTMLSelectElement).value))"
+            >
+              <option v-for="estado in estadosDisponibles" :key="estado.id" :value="estado.id">
+                {{ estado.nombre }}
+              </option>
+            </select>
+          </template>
         </div>
       </div>
     </div>
-    <p v-else-if="!cargando" class="vacio">No tienes tareas asignadas por el momento.</p>
+    <p v-else-if="!(pestanaActiva === 'activas' ? cargando : cargandoCompletadas)" class="vacio">
+      {{ pestanaActiva === 'activas' ? 'No tienes tareas activas por el momento.' : 'Todavía no tienes tareas completadas.' }}
+    </p>
+
+    <ModalDetalleTarea
+      v-if="tareaDetalleSeleccionada"
+      :tarea="tareaDetalleSeleccionada"
+      :evento-comentario="eventoComentario"
+      @cerrar="tareaDetalleSeleccionada = null"
+    />
   </AppShell>
 </template>
 
@@ -139,6 +195,37 @@ onMounted(() => {
   margin-bottom: 1rem;
 }
 .vacio { color: var(--color-text-faint); text-align: center; padding: 2rem 0; }
+
+.tabs { display: flex; gap: 0.25rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--color-border); }
+.tab {
+  padding: 0.6rem 0.9rem;
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  font-family: inherit;
+  transition: color 0.12s ease, border-color 0.12s ease;
+}
+.tab:hover { color: var(--color-text); }
+.tab-activa { color: var(--color-accent); border-bottom-color: var(--color-accent); }
+
+.btn-mini {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: var(--color-accent-subtle);
+  color: var(--color-accent);
+  font-size: 0.78rem; font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.12s ease;
+}
+.btn-mini:hover { background: var(--color-accent); color: var(--color-text-on-accent); }
 
 .lista-tareas { display: flex; flex-direction: column; gap: 0.75rem; }
 

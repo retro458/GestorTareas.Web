@@ -26,7 +26,53 @@ export interface TareaResponse {
   asignadoANombre: string
   fechaVencimiento: string | null // ISO string, se parsea con new Date() donde se necesite
   fechaCreacion: string
+  diaAtraso: number | null // ojo: el backend lo manda singular ("diaAtraso"), no "diasAtraso"
 }
+
+export interface EditarTareaRequest {
+  titulo?: string
+  descripcion?: string
+  prioridadId?: number
+  fechaVencimiento?: string
+}
+
+export interface HistorialTareaResponse {
+  id: number
+  accion: string
+  usuarioNombre: string
+  fecha: string
+}
+
+export interface ComentarioResponse {
+  id: number
+  tareaId: number
+  contenido: string
+  usuarioId: number
+  usuarioNombre: string
+  fechaCreacion: string
+  fechaEdicion: string | null
+}
+
+export interface CrearComentarioRequest {
+  contenido: string
+}
+
+export interface EditarComentarioRequest {
+  contenido: string
+}
+
+export interface ComentarioEliminadoEvento {
+  comentarioId: number
+  tareaId: number
+}
+
+// Evento generico emitido por useTareasHub para los 3 eventos de SignalR de
+// comentarios (NuevoComentario, ComentarioEditado, ComentarioEliminado). Se
+// reenvia tal cual a ModalDetalleTarea, que filtra por tareaId.
+export type EventoComentario =
+  | { tipo: 'nuevo'; payload: ComentarioResponse }
+  | { tipo: 'editado'; payload: ComentarioResponse }
+  | { tipo: 'eliminado'; payload: ComentarioEliminadoEvento }
 
 export interface CrearTareaRequest {
   titulo: string
@@ -68,7 +114,7 @@ export interface DepartamentoResponse {
   id: number
   nombre: string
   descripcion: string | null
-  estado: string | null
+  activo: boolean // ojo: GET /departamento/obtener no lo llena (siempre false); usar /departamento/inactivos para el estado real
 }
 
 export interface CrearDepartamentoRequest {

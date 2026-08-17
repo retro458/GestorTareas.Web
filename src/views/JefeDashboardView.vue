@@ -7,6 +7,11 @@ import AppShell from '@/components/layout/AppShell.vue'
 import ModalReasignarTarea from '@/components/ModalReasignarTarea.vue'
 import ModalCrearDepartamento from '@/components/ModalCrearDepartamento.vue'
 import ModalCrearUsuario from '@/components/ModalCrearUsuario.vue'
+import ModalEditarTarea from '@/components/ModalEditarTarea.vue'
+import ModalDetalleTarea from '@/components/ModalDetalleTarea.vue'
+import ModalGestionUsuarios from '@/components/ModalGestionUsuarios.vue'
+import ModalGestionDepartamentos from '@/components/ModalGestionDepartamentos.vue'
+import BadgeAtraso from '@/components/BadgeAtraso.vue'
 import { useTareasHub } from '@/composables/useTareasHub'
 import { useEmpleados } from '@/composables/useEmpleados'
 import { useDepartamentos } from '@/composables/useDepartamentos'
@@ -17,6 +22,9 @@ import IconCheckCircle from '@/components/icons/IconCheckCircle.vue'
 import IconPlay from '@/components/icons/IconPlay.vue'
 import IconClock from '@/components/icons/IconClock.vue'
 import IconRefresh from '@/components/icons/IconRefresh.vue'
+import IconEye from '@/components/icons/IconEye.vue'
+
+const ESTADOS_FINALES = ['Completada', 'Cancelada']
 
 const tareas = ref<TareaResponse[]>([])
 const cargando = ref(false)
@@ -25,8 +33,18 @@ const modalTareaId = ref<number | null>(null)
 const modalTareaTitulo = ref('')
 const mostrarCrearDepartamento = ref(false)
 const mostrarCrearUsuario = ref(false)
+const mostrarGestionUsuarios = ref(false)
+const mostrarGestionDepartamentos = ref(false)
 
-const { notificaciones, quitarNotificacion } = useTareasHub(() => cargarTareas())
+const pestanaActiva = ref<'activas' | 'completadas'>('activas')
+const tareasCompletadas = ref<TareaResponse[]>([])
+const cargandoCompletadas = ref(false)
+const errorCompletadas = ref<string | null>(null)
+
+const tareaEditando = ref<TareaResponse | null>(null)
+const tareaDetalleSeleccionada = ref<TareaResponse | null>(null)
+
+const { notificaciones, quitarNotificacion, eventoComentario } = useTareasHub(() => { cargarTareas(); cargarCompletadas() })
 const { empleados, cargarEmpleados } = useEmpleados()
 const { departamentos, cargarDepartamentos } = useDepartamentos()
 const authStore = useAuthStore()
@@ -51,10 +69,19 @@ function nombreDepartamento(departamentoId: number | null) {
   return departamentos.value.find(d => d.id === departamentoId)?.nombre ?? '—'
 }
 
+function esEstadoFinal(estado: string) {
+  return ESTADOS_FINALES.includes(estado)
+}
+
 const totalTareas = computed(() => tareas.value.length)
 const completadas = computed(() => tareas.value.filter(t => t.estado === 'Completada').length)
 const enProgreso = computed(() => tareas.value.filter(t => t.estado === 'En Progreso').length)
 const pendientes = computed(() => tareas.value.filter(t => t.estado === 'Pendiente').length)
+
+// La pestana "Activas" no mezcla las tareas ya completadas: esas viven en su propia
+// pestana, cargada desde /tareas/completadas.
+const tareasActivasMostradas = computed(() => tareas.value.filter(t => t.estado !== 'Completada'))
+const tareasMostradas = computed(() => pestanaActiva.value === 'activas' ? tareasActivasMostradas.value : tareasCompletadas.value)
 
 const mostrarFormulario = ref(false)
 const nuevaTarea = ref<CrearTareaRequest>({
@@ -76,6 +103,23 @@ async function cargarTareas() {
   } finally {
     cargando.value = false
   }
+}
+
+async function cargarCompletadas() {
+  cargandoCompletadas.value = true
+  errorCompletadas.value = null
+  try {
+    const { data } = await api.get<TareaResponse[]>('/tareas/completadas')
+    tareasCompletadas.value = data
+  } catch {
+    errorCompletadas.value = 'No se pudieron cargar las tareas completadas.'
+  } finally {
+    cargandoCompletadas.value = false
+  }
+}
+
+async function actualizarTodo() {
+  await Promise.all([cargarTareas(), cargarCompletadas()])
 }
 
 async function crearTarea() {
@@ -122,6 +166,7 @@ onMounted(() => {
     departamentoFiltroId.value = authStore.usuario?.departamentosIds?.[0] ?? null
   }
   cargarTareas()
+  cargarCompletadas()
   cargarEmpleados()
   cargarDepartamentos()
 })
@@ -134,6 +179,8 @@ onMounted(() => {
     @quitar-notificacion="quitarNotificacion"
     @crear-departamento="mostrarCrearDepartamento = true"
     @crear-usuario="mostrarCrearUsuario = true"
+    @gestionar-usuarios="mostrarGestionUsuarios = true"
+    @gestionar-departamentos="mostrarGestionDepartamentos = true"
   >
     <div class="kpis">
       <div class="kpi-card">
@@ -158,9 +205,9 @@ onMounted(() => {
       <button class="btn-primario" @click="mostrarFormulario = !mostrarFormulario">
         {{ mostrarFormulario ? 'Cancelar' : '+ Nueva tarea' }}
       </button>
-      <button class="btn-secundario" @click="cargarTareas" :disabled="cargando">
+      <button class="btn-secundario" @click="actualizarTodo" :disabled="cargando || cargandoCompletadas">
         <IconRefresh :size="14" />
-        {{ cargando ? 'Actualizando...' : 'Actualizar' }}
+        {{ (cargando || cargandoCompletadas) ? 'Actualizando...' : 'Actualizar' }}
       </button>
       <div class="campo campo-filtro">
         <label>Departamento</label>
@@ -220,9 +267,19 @@ onMounted(() => {
       </button>
     </form>
 
-    <p v-if="errorCarga" class="mensaje-error">{{ errorCarga }}</p>
+    <div class="tabs">
+      <button class="tab" :class="{ 'tab-activa': pestanaActiva === 'activas' }" @click="pestanaActiva = 'activas'">
+        Activas
+      </button>
+      <button class="tab" :class="{ 'tab-activa': pestanaActiva === 'completadas' }" @click="pestanaActiva = 'completadas'">
+        Completadas
+      </button>
+    </div>
 
-    <div class="tabla-wrapper" v-if="tareas.length > 0">
+    <p v-if="pestanaActiva === 'activas' && errorCarga" class="mensaje-error">{{ errorCarga }}</p>
+    <p v-if="pestanaActiva === 'completadas' && errorCompletadas" class="mensaje-error">{{ errorCompletadas }}</p>
+
+    <div class="tabla-wrapper" v-if="tareasMostradas.length > 0">
       <table class="tabla-tareas">
         <thead>
           <tr>
@@ -230,8 +287,11 @@ onMounted(() => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="tarea in tareas" :key="tarea.id">
-            <td class="celda-titulo">{{ tarea.titulo }}</td>
+          <tr v-for="tarea in tareasMostradas" :key="tarea.id">
+            <td class="celda-titulo">
+              {{ tarea.titulo }}
+              <BadgeAtraso :dias-atraso="tarea.diaAtraso" />
+            </td>
             <td>
               <span class="persona">
                 <span class="avatar-mini" :style="{ background: colorAvatar(tarea.asignadoANombre) }">
@@ -246,14 +306,21 @@ onMounted(() => {
             <td><span class="badge" :class="colorEstado(tarea.estado)">{{ tarea.estado }}</span></td>
             <td><span class="badge" :class="colorPrioridad(tarea.prioridad)">{{ tarea.prioridad }}</span></td>
             <td class="celda-fecha">{{ tarea.fechaVencimiento ? new Date(tarea.fechaVencimiento).toLocaleDateString() : '—' }}</td>
-            <td>
-              <button class="btn-mini" @click="abrirModalReasignar(tarea)">Reasignar</button>
+            <td class="celda-acciones">
+              <button class="btn-mini" @click="tareaDetalleSeleccionada = tarea">
+                <IconEye :size="13" />
+                Detalle
+              </button>
+              <button v-if="!esEstadoFinal(tarea.estado)" class="btn-mini" @click="tareaEditando = tarea">Editar</button>
+              <button v-if="!esEstadoFinal(tarea.estado)" class="btn-mini" @click="abrirModalReasignar(tarea)">Reasignar</button>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
-    <p v-else-if="!cargando" class="vacio">No hay tareas registradas todavía.</p>
+    <p v-else-if="!(pestanaActiva === 'activas' ? cargando : cargandoCompletadas)" class="vacio">
+      {{ pestanaActiva === 'activas' ? 'No hay tareas activas registradas todavía.' : 'No hay tareas completadas todavía.' }}
+    </p>
 
     <ModalReasignarTarea
       v-if="modalTareaId"
@@ -261,6 +328,20 @@ onMounted(() => {
       :titulo-tarea="modalTareaTitulo"
       @cerrar="modalTareaId = null"
       @reasignado="() => { modalTareaId = null; cargarTareas() }"
+    />
+
+    <ModalEditarTarea
+      v-if="tareaEditando"
+      :tarea="tareaEditando"
+      @cerrar="tareaEditando = null"
+      @editado="() => { tareaEditando = null; cargarTareas(); cargarCompletadas() }"
+    />
+
+    <ModalDetalleTarea
+      v-if="tareaDetalleSeleccionada"
+      :tarea="tareaDetalleSeleccionada"
+      :evento-comentario="eventoComentario"
+      @cerrar="tareaDetalleSeleccionada = null"
     />
 
     <ModalCrearDepartamento
@@ -273,6 +354,16 @@ onMounted(() => {
       v-if="mostrarCrearUsuario"
       @cerrar="mostrarCrearUsuario = false"
       @creado="() => { mostrarCrearUsuario = false; cargarEmpleados() }"
+    />
+
+    <ModalGestionUsuarios
+      v-if="mostrarGestionUsuarios"
+      @cerrar="mostrarGestionUsuarios = false"
+    />
+
+    <ModalGestionDepartamentos
+      v-if="mostrarGestionDepartamentos"
+      @cerrar="mostrarGestionDepartamentos = false"
     />
   </AppShell>
 </template>
@@ -375,6 +466,25 @@ onMounted(() => {
 }
 .vacio { color: var(--color-text-faint); text-align: center; padding: 2rem 0; }
 
+.tabs { display: flex; gap: 0.25rem; margin-bottom: 1rem; border-bottom: 1px solid var(--color-border); }
+.tab {
+  padding: 0.6rem 0.9rem;
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  font-family: inherit;
+  transition: color 0.12s ease, border-color 0.12s ease;
+}
+.tab:hover { color: var(--color-text); }
+.tab-activa { color: var(--color-accent); border-bottom-color: var(--color-accent); }
+
+.celda-acciones { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+
 .tabla-wrapper {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -395,7 +505,7 @@ onMounted(() => {
 }
 .tabla-tareas tr:last-child td { border-bottom: none; }
 .tabla-tareas tr:hover td { background: var(--color-surface-hover); }
-.celda-titulo { font-weight: 500; }
+.celda-titulo { font-weight: 500; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 .celda-fecha { font-variant-numeric: tabular-nums; color: var(--color-text-muted); }
 
 .persona { display: flex; align-items: center; gap: 0.5rem; }

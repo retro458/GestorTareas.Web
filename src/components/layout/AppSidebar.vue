@@ -5,12 +5,15 @@ import IconLogo from '@/components/icons/IconLogo.vue'
 import IconHome from '@/components/icons/IconHome.vue'
 import IconBuilding from '@/components/icons/IconBuilding.vue'
 import IconUserPlus from '@/components/icons/IconUserPlus.vue'
+import IconPower from '@/components/icons/IconPower.vue'
 
 const authStore = useAuthStore()
 
 const emit = defineEmits<{
   crearDepartamento: []
   crearUsuario: []
+  gestionarUsuarios: []
+  gestionarDepartamentos: []
 }>()
 </script>
 
@@ -46,6 +49,19 @@ const emit = defineEmits<{
         <button type="button" class="nav-item nav-item-boton" @click="emit('crearUsuario')">
           <span class="nav-icono"><IconUserPlus :size="17" /></span>
           <span class="nav-texto">Crear usuario</span>
+        </button>
+        <button type="button" class="nav-item nav-item-boton" @click="emit('gestionarUsuarios')">
+          <span class="nav-icono"><IconPower :size="17" /></span>
+          <span class="nav-texto">Gestionar usuarios</span>
+        </button>
+        <button
+          v-if="authStore.usuario?.rol === ROLES.JEFE"
+          type="button"
+          class="nav-item nav-item-boton"
+          @click="emit('gestionarDepartamentos')"
+        >
+          <span class="nav-icono"><IconPower :size="17" /></span>
+          <span class="nav-texto">Gestionar departamentos</span>
         </button>
       </template>
     </nav>

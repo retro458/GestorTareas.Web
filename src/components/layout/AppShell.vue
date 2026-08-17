@@ -12,12 +12,19 @@ const emit = defineEmits<{
   quitarNotificacion: [id: number]
   crearDepartamento: []
   crearUsuario: []
+  gestionarUsuarios: []
+  gestionarDepartamentos: []
 }>()
 </script>
 
 <template>
   <div class="shell">
-    <AppSidebar @crear-departamento="emit('crearDepartamento')" @crear-usuario="emit('crearUsuario')" />
+    <AppSidebar
+      @crear-departamento="emit('crearDepartamento')"
+      @crear-usuario="emit('crearUsuario')"
+      @gestionar-usuarios="emit('gestionarUsuarios')"
+      @gestionar-departamentos="emit('gestionarDepartamentos')"
+    />
     <div class="shell-contenido">
       <AppTopbar
         :titulo="titulo"

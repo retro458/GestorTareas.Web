@@ -90,6 +90,14 @@ export interface ActualizarEstadoRequest {
 export interface ReasignarTareaRequest {
   nuevoAsignadoA: number
 }
+
+export interface AutoasignarTareaRequest {
+  titulo: string
+  descripcion?: string
+  departamentoId: number
+  prioridadId: number
+  fechaVencimiento?: string
+}
  
 export interface NotificacionResponse {
   id: number
@@ -99,10 +107,26 @@ export interface NotificacionResponse {
   fechaCreacion: string
 }
 
+export interface DepartamentoResumen {
+  id: number
+  nombre: string
+}
+
 export interface EmpleadoResponse {
   id: number
   nombre: string
+  nombreUsuario: string
   nombreRol: string
+  departamentos: DepartamentoResumen[]
+}
+
+export interface EditarUsuarioRequest {
+  nombreUsuario: string
+  departamentosIds: number[]
+}
+
+export interface RestablecerPasswordRequest {
+  nuevaPassword: string
 }
 
 export interface EstadoResponse {
@@ -118,6 +142,11 @@ export interface DepartamentoResponse {
 }
 
 export interface CrearDepartamentoRequest {
+  nombre: string
+  descripcion?: string
+}
+
+export interface EditarDepartamentoRequest {
   nombre: string
   descripcion?: string
 }

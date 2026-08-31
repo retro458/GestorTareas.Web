@@ -4,6 +4,7 @@ import api from '@/api/axios'
 import type { DepartamentoResponse } from '@/types'
 import IconX from '@/components/icons/IconX.vue'
 import IconPower from '@/components/icons/IconPower.vue'
+import ModalEditarDepartamento from '@/components/ModalEditarDepartamento.vue'
 
 const emit = defineEmits<{
   cerrar: []
@@ -14,6 +15,7 @@ const cargando = ref(false)
 const errorLista = ref<string | null>(null)
 
 const departamentoSeleccionado = ref<DepartamentoResponse | null>(null)
+const departamentoEditando = ref<DepartamentoResponse | null>(null)
 const accionSeleccionada = ref<'activar' | 'desactivar'>('activar')
 const procesando = ref(false)
 const error = ref<string | null>(null)
@@ -91,15 +93,20 @@ onMounted(cargarDepartamentos)
             <span class="badge" :class="depto.activo ? 'badge-activo' : 'badge-inactivo'">
               {{ depto.activo ? 'Activo' : 'Inactivo' }}
             </span>
-            <button
-              type="button"
-              class="btn-mini"
-              :class="{ peligroso: depto.activo }"
-              @click="abrirConfirmacion(depto, depto.activo ? 'desactivar' : 'activar')"
-            >
-              <IconPower :size="13" />
-              {{ depto.activo ? 'Desactivar' : 'Activar' }}
-            </button>
+            <span class="fila-acciones">
+              <button type="button" class="btn-mini" @click="departamentoEditando = depto">
+                Editar
+              </button>
+              <button
+                type="button"
+                class="btn-mini"
+                :class="{ peligroso: depto.activo }"
+                @click="abrirConfirmacion(depto, depto.activo ? 'desactivar' : 'activar')"
+              >
+                <IconPower :size="13" />
+                {{ depto.activo ? 'Desactivar' : 'Activar' }}
+              </button>
+            </span>
           </div>
         </div>
         <p v-else-if="!cargando" class="estado-info">No hay departamentos para mostrar.</p>
@@ -128,6 +135,13 @@ onMounted(cargarDepartamentos)
           </button>
         </div>
       </template>
+
+      <ModalEditarDepartamento
+        v-if="departamentoEditando"
+        :departamento="departamentoEditando"
+        @cerrar="departamentoEditando = null"
+        @editado="() => { departamentoEditando = null; cargarDepartamentos() }"
+      />
     </div>
   </div>
 </template>
@@ -212,6 +226,8 @@ h2 { margin: 0; font-size: 1.1rem; color: var(--color-text); }
 .badge { padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
 .badge-activo { background: var(--color-success-subtle); color: var(--color-success); }
 .badge-inactivo { background: var(--color-danger-subtle); color: var(--color-danger); }
+
+.fila-acciones { display: flex; gap: 0.4rem; flex-wrap: wrap; flex-shrink: 0; }
 
 .btn-mini {
   display: inline-flex; align-items: center; gap: 0.35rem;

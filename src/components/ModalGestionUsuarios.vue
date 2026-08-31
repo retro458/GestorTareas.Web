@@ -8,6 +8,7 @@ import { colorAvatar, inicial } from '@/utils/avatarColor'
 import IconX from '@/components/icons/IconX.vue'
 import IconPower from '@/components/icons/IconPower.vue'
 import IconAlertCircle from '@/components/icons/IconAlertCircle.vue'
+import ModalEditarUsuario from '@/components/ModalEditarUsuario.vue'
 
 const emit = defineEmits<{
   cerrar: []
@@ -27,6 +28,7 @@ const filas = ref<FilaUsuario[]>([])
 
 const vista = ref<'lista' | 'confirmar'>('lista')
 const empleadoSeleccionado = ref<FilaUsuario | null>(null)
+const empleadoEditando = ref<FilaUsuario | null>(null)
 const accionSeleccionada = ref<'activar' | 'desactivar'>('activar')
 const tareasActivas = ref<TareaResponse[]>([])
 const cargandoTareas = ref(false)
@@ -148,15 +150,20 @@ onMounted(inicializar)
             <span class="badge" :class="fila.activo ? 'badge-activo' : 'badge-inactivo'">
               {{ fila.activo ? 'Activo' : 'Inactivo' }}
             </span>
-            <button
-              type="button"
-              class="btn-mini"
-              :class="{ peligroso: fila.activo }"
-              @click="abrirConfirmacion(fila, fila.activo ? 'desactivar' : 'activar')"
-            >
-              <IconPower :size="13" />
-              {{ fila.activo ? 'Desactivar' : 'Activar' }}
-            </button>
+            <span class="fila-acciones">
+              <button type="button" class="btn-mini" @click="empleadoEditando = fila">
+                Editar
+              </button>
+              <button
+                type="button"
+                class="btn-mini"
+                :class="{ peligroso: fila.activo }"
+                @click="abrirConfirmacion(fila, fila.activo ? 'desactivar' : 'activar')"
+              >
+                <IconPower :size="13" />
+                {{ fila.activo ? 'Desactivar' : 'Activar' }}
+              </button>
+            </span>
           </div>
         </div>
         <p v-else-if="!cargando" class="estado-info">No hay usuarios para mostrar.</p>
@@ -195,6 +202,13 @@ onMounted(inicializar)
           </button>
         </div>
       </template>
+
+      <ModalEditarUsuario
+        v-if="empleadoEditando"
+        :usuario="empleadoEditando"
+        @cerrar="empleadoEditando = null"
+        @editado="() => { empleadoEditando = null; inicializar() }"
+      />
     </div>
   </div>
 </template>
@@ -287,6 +301,8 @@ h2 { margin: 0; font-size: 1.1rem; color: var(--color-text); }
 .badge { padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
 .badge-activo { background: var(--color-success-subtle); color: var(--color-success); }
 .badge-inactivo { background: var(--color-danger-subtle); color: var(--color-danger); }
+
+.fila-acciones { display: flex; gap: 0.4rem; flex-wrap: wrap; flex-shrink: 0; }
 
 .btn-mini {
   display: inline-flex; align-items: center; gap: 0.35rem;

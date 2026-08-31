@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import api from '@/api/axios'
-import type { TareaResponse } from '@/types'
+import type { TareaResponse, AutoasignarTareaRequest } from '@/types'
+import { ROLES } from '@/types'
 import AppShell from '@/components/layout/AppShell.vue'
 import ModalDetalleTarea from '@/components/ModalDetalleTarea.vue'
 import BadgeAtraso from '@/components/BadgeAtraso.vue'
 import { useTareasHub } from '@/composables/useTareasHub'
 import { useEstados } from '@/composables/useEstados'
+import { useMisDepartamentos } from '@/composables/useMisDepartamentos'
+import { useAuthStore } from '@/stores/auth'
 import IconRefresh from '@/components/icons/IconRefresh.vue'
 import IconEye from '@/components/icons/IconEye.vue'
 
@@ -23,6 +26,33 @@ const tareaDetalleSeleccionada = ref<TareaResponse | null>(null)
 
 const { notificaciones, quitarNotificacion, eventoComentario } = useTareasHub(() => { cargarTareas(); cargarCompletadas() })
 const { estados, cargarEstados } = useEstados()
+const { misDepartamentos, cargarMisDepartamentos } = useMisDepartamentos()
+const authStore = useAuthStore()
+
+const esEmpleado = computed(() => authStore.usuario?.rol === ROLES.EMPLEADO)
+
+const mostrarFormularioAutoasignar = ref(false)
+const nuevaTareaAutoasignada = ref<AutoasignarTareaRequest>({
+  titulo: '', descripcion: '', departamentoId: 0, prioridadId: 2, fechaVencimiento: undefined
+})
+const autoasignando = ref(false)
+const errorAutoasignar = ref<string | null>(null)
+
+async function autoasignarTarea() {
+  autoasignando.value = true
+  errorAutoasignar.value = null
+  try {
+    await api.post('/tareas/autoasignar', nuevaTareaAutoasignada.value)
+    nuevaTareaAutoasignada.value = { titulo: '', descripcion: '', departamentoId: 0, prioridadId: 2, fechaVencimiento: undefined }
+    mostrarFormularioAutoasignar.value = false
+    // No hacemos refetch manual: el backend emite "TareaActualizada" por SignalR
+    // y el listener ya montado arriba (useTareasHub) se encarga de recargar la lista.
+  } catch (err: any) {
+    errorAutoasignar.value = err.response?.data?.error ?? 'No se pudo crear la tarea.'
+  } finally {
+    autoasignando.value = false
+  }
+}
 
 // Un empleado no cancela sus propias tareas, eso queda a criterio de Jefe/Encargado
 const estadosDisponibles = computed(() => estados.value.filter(e => e.nombre !== 'Cancelada'))
@@ -100,17 +130,59 @@ onMounted(() => {
   cargarTareas()
   cargarCompletadas()
   cargarEstados()
+  cargarMisDepartamentos()
 })
 </script>
 
 <template>
   <AppShell titulo="Mis tareas" :notificaciones="notificaciones" @quitar-notificacion="quitarNotificacion">
     <div class="acciones">
+      <button v-if="esEmpleado" class="btn-primario" @click="mostrarFormularioAutoasignar = !mostrarFormularioAutoasignar">
+        {{ mostrarFormularioAutoasignar ? 'Cancelar' : '+ Nueva tarea' }}
+      </button>
       <button class="btn-secundario" @click="actualizarTodo" :disabled="cargando || cargandoCompletadas">
         <IconRefresh :size="14" />
         {{ (cargando || cargandoCompletadas) ? 'Actualizando...' : 'Actualizar' }}
       </button>
     </div>
+
+    <form v-if="esEmpleado && mostrarFormularioAutoasignar" class="form-tarea" @submit.prevent="autoasignarTarea">
+      <div class="campo">
+        <label>Título</label>
+        <input v-model="nuevaTareaAutoasignada.titulo" required placeholder="Ej. Actualizar reporte semanal" />
+      </div>
+      <div class="campo">
+        <label>Descripción</label>
+        <textarea v-model="nuevaTareaAutoasignada.descripcion" rows="2" placeholder="Detalles de la tarea..."></textarea>
+      </div>
+      <div class="fila">
+        <div class="campo">
+          <label>Departamento</label>
+          <select v-model.number="nuevaTareaAutoasignada.departamentoId" required>
+            <option :value="0" disabled>Selecciona un departamento</option>
+            <option v-for="depto in misDepartamentos" :key="depto.id" :value="depto.id">
+              {{ depto.nombre }}
+            </option>
+          </select>
+        </div>
+        <div class="campo">
+          <label>Prioridad</label>
+          <select v-model.number="nuevaTareaAutoasignada.prioridadId">
+            <option :value="1">Baja</option>
+            <option :value="2">Media</option>
+            <option :value="3">Alta</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label>Fecha límite</label>
+          <input v-model="nuevaTareaAutoasignada.fechaVencimiento" type="date" />
+        </div>
+      </div>
+      <p v-if="errorAutoasignar" class="mensaje-error">{{ errorAutoasignar }}</p>
+      <button type="submit" class="btn-primario" :disabled="autoasignando">
+        {{ autoasignando ? 'Creando...' : 'Autoasignarme la tarea' }}
+      </button>
+    </form>
 
     <div class="tabs">
       <button class="tab" :class="{ 'tab-activa': pestanaActiva === 'activas' }" @click="pestanaActiva = 'activas'">
@@ -173,17 +245,50 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.acciones { margin-bottom: 1.25rem; }
+.acciones { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem; }
 
-.btn-secundario {
+.btn-primario, .btn-secundario {
   display: inline-flex; align-items: center; gap: 0.4rem;
-  padding: 0.55rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--color-border);
-  background: var(--color-surface); color: var(--color-text);
+  padding: 0.55rem 1rem; border-radius: var(--radius-sm); border: 1px solid transparent;
   font-size: 0.88rem; font-weight: 600; cursor: pointer;
-  transition: background-color 0.12s ease;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+.btn-primario { background: var(--color-accent); color: var(--color-text-on-accent); }
+.btn-primario:hover:not(:disabled) { background: var(--color-accent-hover); }
+.btn-secundario {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-border);
 }
 .btn-secundario:hover:not(:disabled) { background: var(--color-surface-hover); }
-.btn-secundario:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-primario:disabled, .btn-secundario:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.form-tarea {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.campo { margin-bottom: 0.9rem; display: flex; flex-direction: column; gap: 0.3rem; }
+.campo label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--color-text-muted); }
+.campo input, .campo textarea, .campo select {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.88rem;
+  font-family: inherit;
+}
+.campo input:focus, .campo textarea:focus, .campo select:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-subtle);
+}
+
+.fila { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; }
 
 .mensaje-error {
   color: var(--color-danger);

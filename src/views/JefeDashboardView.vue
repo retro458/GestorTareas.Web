@@ -12,6 +12,7 @@ import ModalDetalleTarea from '@/components/ModalDetalleTarea.vue'
 import ModalGestionUsuarios from '@/components/ModalGestionUsuarios.vue'
 import ModalGestionDepartamentos from '@/components/ModalGestionDepartamentos.vue'
 import ModalTareasUsuario from '@/components/ModalTareasUsuario.vue'
+import ModalReporteDepartamentos from '@/components/ModalReporteDepartamentos.vue'
 import BadgeAtraso from '@/components/BadgeAtraso.vue'
 import { useTareasHub } from '@/composables/useTareasHub'
 import { useEmpleados } from '@/composables/useEmpleados'
@@ -45,6 +46,7 @@ const errorCompletadas = ref<string | null>(null)
 const tareaEditando = ref<TareaResponse | null>(null)
 const tareaDetalleSeleccionada = ref<TareaResponse | null>(null)
 const usuarioVerTareas = ref<{ id: number; nombre: string } | null>(null)
+const mostrarReporteDepartamentos = ref(false)
 
 const { notificaciones, quitarNotificacion, eventoComentario } = useTareasHub(() => { cargarTareas(); cargarCompletadas() })
 const { empleados, cargarEmpleados } = useEmpleados()
@@ -210,6 +212,10 @@ onMounted(() => {
       <button class="btn-secundario" @click="actualizarTodo" :disabled="cargando || cargandoCompletadas">
         <IconRefresh :size="14" />
         {{ (cargando || cargandoCompletadas) ? 'Actualizando...' : 'Actualizar' }}
+      </button>
+      <button class="btn-secundario" @click="mostrarReporteDepartamentos = true">
+        <IconClipboardList :size="14" />
+        Reporte por departamentos
       </button>
       <div class="campo campo-filtro">
         <label>Departamento</label>
@@ -378,6 +384,12 @@ onMounted(() => {
       :usuario-id="usuarioVerTareas.id"
       :usuario-nombre="usuarioVerTareas.nombre"
       @cerrar="usuarioVerTareas = null"
+    />
+
+    <ModalReporteDepartamentos
+      v-if="mostrarReporteDepartamentos"
+      :evento-comentario="eventoComentario"
+      @cerrar="mostrarReporteDepartamentos = false"
     />
   </AppShell>
 </template>

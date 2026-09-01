@@ -106,6 +106,21 @@ export interface TareasPorUsuarioResponse {
   creadas: TareaResponse[]
 }
 
+export interface ConteoPorEstado {
+  estado: string
+  cantidad: number
+}
+
+export interface ReporteDepartamento {
+  departamentoId: number
+  departamentoNombre: string
+  total: number
+  desglosePorEstado: ConteoPorEstado[]
+  tareas: TareaResponse[]
+}
+
+export type FiltroReporte = 'activas' | 'completadas' | 'todas'
+
 export interface NotificacionResponse {
   id: number
   tareaId: number

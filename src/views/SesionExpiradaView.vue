@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import ThemeToggle from '@/components/ThemeToggle.vue'
-import IconLogo from '@/components/icons/IconLogo.vue'
 import IconAlertCircle from '@/components/icons/IconAlertCircle.vue'
 
 const router = useRouter()
@@ -12,7 +11,7 @@ const router = useRouter()
     <ThemeToggle class="toggle-flotante" />
 
     <div class="card">
-      <div class="logo"><IconLogo :size="19" /></div>
+      <img src="/logo-128.png" alt="TaskFlow" class="logo" />
 
       <p class="mensaje-aviso"><IconAlertCircle :size="15" />Tu sesión expiró por inactividad.</p>
 
@@ -63,15 +62,10 @@ const router = useRouter()
 }
 
 .logo {
-  width: 44px;
-  height: 44px;
-  margin: 0 auto 2rem;
-  border-radius: var(--radius-md);
-  background: var(--color-accent);
-  color: var(--color-text-on-accent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 1.5rem;
 }
 
 .mensaje-aviso {

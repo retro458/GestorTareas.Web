@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useAuthStore } from '@/stores/auth'
 import { ROLES } from '@/types'
-import IconLogo from '@/components/icons/IconLogo.vue'
 import IconHome from '@/components/icons/IconHome.vue'
 import IconBuilding from '@/components/icons/IconBuilding.vue'
 import IconUserPlus from '@/components/icons/IconUserPlus.vue'
@@ -20,7 +19,7 @@ const emit = defineEmits<{
 <template>
   <aside class="sidebar">
     <div class="marca">
-      <span class="marca-logo"><IconLogo :size="16" /></span>
+      <img src="/logo-128.png" alt="TaskFlow" class="marca-logo" />
       <span class="marca-nombre nav-texto">TaskFlow</span>
     </div>
 
@@ -93,13 +92,8 @@ const emit = defineEmits<{
 .marca-logo {
   width: 30px;
   height: 30px;
-  border-radius: var(--radius-sm);
-  background: var(--color-accent);
-  color: var(--color-text-on-accent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   flex-shrink: 0;
+  display: block;
 }
 
 .marca-nombre {

@@ -76,6 +76,7 @@ onMounted(cargar)
               {{ tarea.titulo }}
               <BadgeAtraso :dias-atraso="tarea.diaAtraso" />
             </div>
+            <p v-if="tarea.descripcion" class="tarea-item-descripcion">{{ tarea.descripcion }}</p>
             <div class="tarea-item-meta">
               <span class="badge" :class="colorEstado(tarea.estado)">{{ tarea.estado }}</span>
               <span class="badge" :class="colorPrioridad(tarea.prioridad)">{{ tarea.prioridad }}</span>
@@ -94,6 +95,7 @@ onMounted(cargar)
               {{ tarea.titulo }}
               <BadgeAtraso :dias-atraso="tarea.diaAtraso" />
             </div>
+            <p v-if="tarea.descripcion" class="tarea-item-descripcion">{{ tarea.descripcion }}</p>
             <div class="tarea-item-meta">
               <span class="badge" :class="colorEstado(tarea.estado)">{{ tarea.estado }}</span>
               <span class="badge" :class="colorPrioridad(tarea.prioridad)">{{ tarea.prioridad }}</span>
@@ -183,7 +185,10 @@ h2 { margin: 0; font-size: 1.1rem; color: var(--color-text); }
 .tarea-item-titulo {
   font-size: 0.86rem; font-weight: 500; color: var(--color-text);
   display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.3rem;
+}
+.tarea-item-descripcion {
+  margin: 0 0 0.4rem; font-size: 0.78rem; color: var(--color-text-muted);
 }
 .tarea-item-meta {
   display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;

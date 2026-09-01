@@ -5,6 +5,7 @@ import type { ReporteDepartamento, FiltroReporte, TareaResponse, EventoComentari
 import BadgeAtraso from '@/components/BadgeAtraso.vue'
 import IconX from '@/components/icons/IconX.vue'
 import PanelDetalleTarea from '@/components/PanelDetalleTarea.vue'
+import { useDepartamentos } from '@/composables/useDepartamentos'
 
 defineProps<{
   eventoComentario?: EventoComentario | null
@@ -13,6 +14,16 @@ defineProps<{
 const emit = defineEmits<{
   cerrar: []
 }>()
+
+const { departamentos, cargarDepartamentos } = useDepartamentos()
+
+// El reporte no trae la descripcion del departamento; la sacamos del listado
+// completo de /departamento/obtener y la cruzamos por id. Un Encargado recibe
+// ahi todos los departamentos (no solo los suyos), pero eso no importa: solo
+// se usa como diccionario para los departamentos que el reporte ya filtro.
+function descripcionDepartamento(departamentoId: number) {
+  return departamentos.value.find(d => d.id === departamentoId)?.descripcion ?? null
+}
 
 const reporte = ref<ReporteDepartamento[]>([])
 const cargando = ref(false)
@@ -78,7 +89,10 @@ function colorPrioridad(prioridad: string) {
 
 const totalGeneral = () => reporteFiltrado.value.reduce((acc, d) => acc + d.total, 0)
 
-onMounted(cargar)
+onMounted(() => {
+  cargar()
+  cargarDepartamentos()
+})
 </script>
 
 <template>
@@ -129,6 +143,9 @@ onMounted(cargar)
               <span class="depto-reporte-nombre">{{ depto.departamentoNombre }}</span>
               <span class="depto-reporte-total">{{ depto.total }} tarea(s)</span>
             </div>
+            <p v-if="descripcionDepartamento(depto.departamentoId)" class="depto-reporte-descripcion">
+              {{ descripcionDepartamento(depto.departamentoId) }}
+            </p>
 
             <div v-if="depto.desglosePorEstado.length > 0" class="depto-reporte-desglose">
               <span v-for="conteo in depto.desglosePorEstado" :key="conteo.estado" class="badge" :class="colorEstado(conteo.estado)">
@@ -298,6 +315,7 @@ h2 { margin: 0; font-size: 1.1rem; color: var(--color-text); }
 }
 .depto-reporte-nombre { font-size: 0.92rem; font-weight: 600; color: var(--color-text); }
 .depto-reporte-total { font-size: 0.78rem; color: var(--color-text-faint); white-space: nowrap; }
+.depto-reporte-descripcion { margin: 0.1rem 0 0.6rem; font-size: 0.8rem; color: var(--color-text-muted); }
 
 .depto-reporte-desglose { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.5rem; }
 

@@ -419,7 +419,7 @@ h2 { margin: 0; font-size: 1.1rem; color: var(--color-text); }
 .comentario-autor { font-weight: 600; color: var(--color-text-muted); }
 .comentario-texto { margin: 0; font-size: 0.86rem; color: var(--color-text); white-space: pre-wrap; word-break: break-word; }
 
-.comentario-acciones { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.3rem; }
+.comentario-acciones { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.3rem; flex-wrap: wrap; }
 .comentario-confirmar-texto { font-size: 0.78rem; color: var(--color-text-muted); }
 
 .btn-enlace {

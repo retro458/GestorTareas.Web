@@ -99,6 +99,7 @@ onUnmounted(() => document.removeEventListener('click', manejarClickFuera))
   right: 0;
   top: calc(100% + 8px);
   width: 320px;
+  max-width: calc(100vw - 1.5rem);
   max-height: 360px;
   overflow-y: auto;
   background: var(--color-surface);
@@ -107,6 +108,18 @@ onUnmounted(() => document.removeEventListener('click', manejarClickFuera))
   padding: 0.75rem;
   z-index: 50;
   box-shadow: var(--shadow-lg);
+}
+
+@media (max-width: 480px) {
+  .desplegable {
+    position: fixed;
+    top: 64px;
+    right: 0.75rem;
+    left: 0.75rem;
+    width: auto;
+    max-width: none;
+    max-height: calc(100vh - 80px);
+  }
 }
 
 .titulo-desplegable {

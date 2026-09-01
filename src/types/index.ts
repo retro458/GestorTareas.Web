@@ -99,6 +99,13 @@ export interface AutoasignarTareaRequest {
   fechaVencimiento?: string
 }
  
+export interface TareasPorUsuarioResponse {
+  usuarioId: number
+  usuarioNombre: string
+  asignadas: TareaResponse[]
+  creadas: TareaResponse[]
+}
+
 export interface NotificacionResponse {
   id: number
   tareaId: number

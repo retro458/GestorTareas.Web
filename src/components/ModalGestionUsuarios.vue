@@ -8,7 +8,9 @@ import { colorAvatar, inicial } from '@/utils/avatarColor'
 import IconX from '@/components/icons/IconX.vue'
 import IconPower from '@/components/icons/IconPower.vue'
 import IconAlertCircle from '@/components/icons/IconAlertCircle.vue'
+import IconClipboardList from '@/components/icons/IconClipboardList.vue'
 import ModalEditarUsuario from '@/components/ModalEditarUsuario.vue'
+import ModalTareasUsuario from '@/components/ModalTareasUsuario.vue'
 
 const emit = defineEmits<{
   cerrar: []
@@ -29,6 +31,7 @@ const filas = ref<FilaUsuario[]>([])
 const vista = ref<'lista' | 'confirmar'>('lista')
 const empleadoSeleccionado = ref<FilaUsuario | null>(null)
 const empleadoEditando = ref<FilaUsuario | null>(null)
+const empleadoVerTareas = ref<FilaUsuario | null>(null)
 const accionSeleccionada = ref<'activar' | 'desactivar'>('activar')
 const tareasActivas = ref<TareaResponse[]>([])
 const cargandoTareas = ref(false)
@@ -151,6 +154,10 @@ onMounted(inicializar)
               {{ fila.activo ? 'Activo' : 'Inactivo' }}
             </span>
             <span class="fila-acciones">
+              <button type="button" class="btn-mini" @click="empleadoVerTareas = fila">
+                <IconClipboardList :size="13" />
+                Ver tareas
+              </button>
               <button type="button" class="btn-mini" @click="empleadoEditando = fila">
                 Editar
               </button>
@@ -209,6 +216,13 @@ onMounted(inicializar)
         @cerrar="empleadoEditando = null"
         @editado="() => { empleadoEditando = null; inicializar() }"
       />
+
+      <ModalTareasUsuario
+        v-if="empleadoVerTareas"
+        :usuario-id="empleadoVerTareas.id"
+        :usuario-nombre="empleadoVerTareas.nombre"
+        @cerrar="empleadoVerTareas = null"
+      />
     </div>
   </div>
 </template>
@@ -236,6 +250,10 @@ onMounted(inicializar)
   padding: 1.5rem;
   color: var(--color-text);
   box-shadow: var(--shadow-lg);
+}
+
+@media (max-width: 480px) {
+  .modal { padding: 1.1rem; }
 }
 
 .modal-header {
@@ -280,6 +298,7 @@ h2 { margin: 0; font-size: 1.1rem; color: var(--color-text); }
   display: flex;
   align-items: center;
   gap: 0.7rem;
+  flex-wrap: wrap;
   padding: 0.55rem 0.65rem;
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
@@ -294,7 +313,7 @@ h2 { margin: 0; font-size: 1.1rem; color: var(--color-text); }
   flex-shrink: 0;
 }
 
-.usuario-info { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.usuario-info { display: flex; flex-direction: column; flex: 1; min-width: 140px; }
 .usuario-nombre { font-size: 0.88rem; font-weight: 600; color: var(--color-text); }
 .usuario-rol { font-size: 0.74rem; color: var(--color-text-faint); }
 

@@ -171,6 +171,10 @@ onMounted(cargarDepartamentos)
   box-shadow: var(--shadow-lg);
 }
 
+@media (max-width: 480px) {
+  .modal { padding: 1.1rem; }
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;
@@ -213,13 +217,14 @@ h2 { margin: 0; font-size: 1.1rem; color: var(--color-text); }
   display: flex;
   align-items: center;
   gap: 0.7rem;
+  flex-wrap: wrap;
   padding: 0.6rem 0.7rem;
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
   background: var(--color-surface);
 }
 
-.depto-info { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.depto-info { display: flex; flex-direction: column; flex: 1; min-width: 140px; }
 .depto-nombre { font-size: 0.88rem; font-weight: 600; color: var(--color-text); }
 .depto-descripcion { font-size: 0.76rem; color: var(--color-text-faint); }
 

@@ -245,7 +245,7 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.acciones { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem; }
+.acciones { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
 
 .btn-primario, .btn-secundario {
   display: inline-flex; align-items: center; gap: 0.4rem;
@@ -387,4 +387,22 @@ onMounted(() => {
 .badge-baja { background: var(--color-surface-sunken); color: var(--color-text-muted); }
 .badge-media { background: var(--color-warning-subtle); color: var(--color-warning); }
 .badge-alta { background: var(--color-danger-subtle); color: var(--color-danger); }
+
+@media (max-width: 560px) {
+  .tarea-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .tarea-accion {
+    min-width: 0;
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .tarea-accion select {
+    flex: 1;
+    min-width: 120px;
+  }
+}
 </style>

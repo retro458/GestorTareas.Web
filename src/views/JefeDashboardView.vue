@@ -11,6 +11,7 @@ import ModalEditarTarea from '@/components/ModalEditarTarea.vue'
 import ModalDetalleTarea from '@/components/ModalDetalleTarea.vue'
 import ModalGestionUsuarios from '@/components/ModalGestionUsuarios.vue'
 import ModalGestionDepartamentos from '@/components/ModalGestionDepartamentos.vue'
+import ModalTareasUsuario from '@/components/ModalTareasUsuario.vue'
 import BadgeAtraso from '@/components/BadgeAtraso.vue'
 import { useTareasHub } from '@/composables/useTareasHub'
 import { useEmpleados } from '@/composables/useEmpleados'
@@ -43,6 +44,7 @@ const errorCompletadas = ref<string | null>(null)
 
 const tareaEditando = ref<TareaResponse | null>(null)
 const tareaDetalleSeleccionada = ref<TareaResponse | null>(null)
+const usuarioVerTareas = ref<{ id: number; nombre: string } | null>(null)
 
 const { notificaciones, quitarNotificacion, eventoComentario } = useTareasHub(() => { cargarTareas(); cargarCompletadas() })
 const { empleados, cargarEmpleados } = useEmpleados()
@@ -293,7 +295,12 @@ onMounted(() => {
               <BadgeAtraso :dias-atraso="tarea.diaAtraso" />
             </td>
             <td>
-              <span class="persona">
+              <button
+                type="button"
+                class="persona persona-boton"
+                title="Ver tareas de este usuario"
+                @click="usuarioVerTareas = { id: tarea.asignadoA, nombre: tarea.asignadoANombre }"
+              >
                 <span class="avatar-mini" :style="{ background: colorAvatar(tarea.asignadoANombre) }">
                   {{ inicial(tarea.asignadoANombre) }}
                 </span>
@@ -301,7 +308,7 @@ onMounted(() => {
                   <span class="persona-nombre">{{ tarea.asignadoANombre }}</span>
                   <span class="persona-departamento">{{ nombreDepartamento(tarea.departamentoId) }}</span>
                 </span>
-              </span>
+              </button>
             </td>
             <td><span class="badge" :class="colorEstado(tarea.estado)">{{ tarea.estado }}</span></td>
             <td><span class="badge" :class="colorPrioridad(tarea.prioridad)">{{ tarea.prioridad }}</span></td>
@@ -365,11 +372,18 @@ onMounted(() => {
       v-if="mostrarGestionDepartamentos"
       @cerrar="mostrarGestionDepartamentos = false"
     />
+
+    <ModalTareasUsuario
+      v-if="usuarioVerTareas"
+      :usuario-id="usuarioVerTareas.id"
+      :usuario-nombre="usuarioVerTareas.nombre"
+      @cerrar="usuarioVerTareas = null"
+    />
   </AppShell>
 </template>
 
 <style scoped>
-.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
 
 .kpi-card {
   background: var(--color-surface);
@@ -389,7 +403,7 @@ onMounted(() => {
 .kpi-numero { margin: 0; font-size: 1.35rem; font-weight: 700; color: var(--color-text); font-variant-numeric: tabular-nums; }
 .kpi-label { margin: 0; font-size: 0.75rem; color: var(--color-text-muted); }
 
-.acciones { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem; }
+.acciones { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
 
 .campo-filtro {
   margin-left: auto;
@@ -407,6 +421,17 @@ onMounted(() => {
   color: var(--color-text);
   font-size: 0.85rem;
   font-family: inherit;
+}
+
+@media (max-width: 560px) {
+  .campo-filtro {
+    margin-left: 0;
+    width: 100%;
+  }
+  .campo-filtro select {
+    flex: 1;
+    min-width: 0;
+  }
 }
 .campo-filtro select:focus {
   outline: none;
@@ -509,6 +534,11 @@ onMounted(() => {
 .celda-fecha { font-variant-numeric: tabular-nums; color: var(--color-text-muted); }
 
 .persona { display: flex; align-items: center; gap: 0.5rem; }
+.persona-boton {
+  background: none; border: none; padding: 0; margin: 0; cursor: pointer;
+  font-family: inherit; text-align: left; border-radius: var(--radius-sm);
+}
+.persona-boton:hover .persona-nombre { color: var(--color-accent); text-decoration: underline; }
 .avatar-mini {
   width: 22px; height: 22px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;

@@ -54,11 +54,18 @@ const emit = defineEmits<{
 .shell-main {
   flex: 1;
   padding: 1.5rem 2rem 3rem;
+  min-width: 0;
 }
 
 @media (max-width: 900px) {
   .shell-contenido {
     margin-left: 60px;
+  }
+}
+
+@media (max-width: 640px) {
+  .shell-main {
+    padding: 1.1rem 1rem 2rem;
   }
 }
 </style>

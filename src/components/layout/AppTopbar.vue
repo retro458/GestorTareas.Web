@@ -66,7 +66,7 @@ async function cerrarSesion() {
 .topbar {
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 21;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -81,12 +81,17 @@ async function cerrarSesion() {
   font-size: 1.05rem;
   font-weight: 700;
   color: var(--color-text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .topbar-acciones {
   display: flex;
   align-items: center;
   gap: 0.6rem;
+  flex-shrink: 0;
 }
 
 .separador {
@@ -158,6 +163,22 @@ async function cerrarSesion() {
 
 @media (max-width: 640px) {
   .usuario-info {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .topbar {
+    padding: 0.7rem 0.85rem;
+    gap: 0.5rem;
+  }
+  .topbar-titulo {
+    font-size: 0.94rem;
+  }
+  .topbar-acciones {
+    gap: 0.4rem;
+  }
+  .separador {
     display: none;
   }
 }

@@ -173,7 +173,7 @@ onMounted(() => {
               >
                 <div class="tarea-item-titulo">
                   {{ tarea.titulo }}
-                  <BadgeAtraso :dias-atraso="tarea.diaAtraso" />
+                  <BadgeAtraso :dias-atraso="tarea.diaAtraso" :estado="tarea.estado" />
                 </div>
                 <div class="tarea-item-meta">
                   <span class="badge" :class="colorEstado(tarea.estado)">{{ tarea.estado }}</span>

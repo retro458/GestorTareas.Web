@@ -1,13 +1,17 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import IconAlertCircle from '@/components/icons/IconAlertCircle.vue'
 
-defineProps<{
+const props = defineProps<{
   diasAtraso: number | null
+  estado?: string
 }>()
+
+const visible = computed(() => props.diasAtraso !== null && props.estado !== 'Completada')
 </script>
 
 <template>
-  <span v-if="diasAtraso !== null" class="badge-atraso">
+  <span v-if="visible" class="badge-atraso">
     <IconAlertCircle :size="12" />
     Atrasada {{ diasAtraso }} {{ diasAtraso === 1 ? 'día' : 'días' }}
   </span>

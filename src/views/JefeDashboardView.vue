@@ -77,8 +77,8 @@ function esEstadoFinal(estado: string) {
   return ESTADOS_FINALES.includes(estado)
 }
 
-const totalTareas = computed(() => tareas.value.length)
-const completadas = computed(() => tareas.value.filter(t => t.estado === 'Completada').length)
+const totalTareas = computed(() => tareas.value.length + tareasCompletadas.value.length)
+const completadas = computed(() => tareasCompletadas.value.length)
 const enProgreso = computed(() => tareas.value.filter(t => t.estado === 'En Progreso').length)
 const pendientes = computed(() => tareas.value.filter(t => t.estado === 'Pendiente').length)
 
@@ -298,7 +298,7 @@ onMounted(() => {
           <tr v-for="tarea in tareasMostradas" :key="tarea.id">
             <td class="celda-titulo">
               {{ tarea.titulo }}
-              <BadgeAtraso :dias-atraso="tarea.diaAtraso" />
+              <BadgeAtraso :dias-atraso="tarea.diaAtraso" :estado="tarea.estado" />
             </td>
             <td>
               <button

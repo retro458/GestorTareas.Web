@@ -175,7 +175,7 @@ onMounted(() => {
       <h3>{{ tarea.titulo }}</h3>
       <span class="badge" :class="colorEstado(tarea.estado)">{{ tarea.estado }}</span>
       <span class="badge" :class="colorPrioridad(tarea.prioridad)">{{ tarea.prioridad }}</span>
-      <BadgeAtraso :dias-atraso="tarea.diaAtraso" />
+      <BadgeAtraso :dias-atraso="tarea.diaAtraso" :estado="tarea.estado" />
     </div>
     <p v-if="tarea.descripcion" class="resumen-descripcion">{{ tarea.descripcion }}</p>
     <div class="resumen-meta">

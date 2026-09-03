@@ -60,7 +60,7 @@ onMounted(cargar)
       <div class="modal-header">
         <div>
           <h2>Tareas de {{ usuarioNombre }}</h2>
-          <p class="subtitulo">Tareas asignadas a este usuario y tareas que ha creado</p>
+          <p class="subtitulo">Tareas asignadas a este usuario</p>
         </div>
         <button type="button" class="btn-cerrar" @click="emit('cerrar')"><IconX :size="15" /></button>
       </div>
@@ -74,7 +74,7 @@ onMounted(cargar)
           <div v-for="tarea in datos.asignadas" :key="tarea.id" class="tarea-item">
             <div class="tarea-item-titulo">
               {{ tarea.titulo }}
-              <BadgeAtraso :dias-atraso="tarea.diaAtraso" />
+              <BadgeAtraso :dias-atraso="tarea.diaAtraso" :estado="tarea.estado" />
             </div>
             <p v-if="tarea.descripcion" class="tarea-item-descripcion">{{ tarea.descripcion }}</p>
             <div class="tarea-item-meta">
@@ -87,23 +87,6 @@ onMounted(cargar)
           </div>
         </div>
         <p v-else class="estado-info">No tiene tareas asignadas.</p>
-
-        <p class="etiqueta-seccion">Creadas ({{ datos.creadas.length }})</p>
-        <div v-if="datos.creadas.length > 0" class="lista-tareas">
-          <div v-for="tarea in datos.creadas" :key="tarea.id" class="tarea-item">
-            <div class="tarea-item-titulo">
-              {{ tarea.titulo }}
-              <BadgeAtraso :dias-atraso="tarea.diaAtraso" />
-            </div>
-            <p v-if="tarea.descripcion" class="tarea-item-descripcion">{{ tarea.descripcion }}</p>
-            <div class="tarea-item-meta">
-              <span class="badge" :class="colorEstado(tarea.estado)">{{ tarea.estado }}</span>
-              <span class="badge" :class="colorPrioridad(tarea.prioridad)">{{ tarea.prioridad }}</span>
-              <span class="tarea-item-fecha">Asignada a: {{ tarea.asignadoANombre }}</span>
-            </div>
-          </div>
-        </div>
-        <p v-else class="estado-info">No ha creado tareas.</p>
       </template>
 
       <button class="btn-cancelar" @click="emit('cerrar')">Cerrar</button>

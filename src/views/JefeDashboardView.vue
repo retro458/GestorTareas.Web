@@ -38,7 +38,11 @@ const mostrarCrearUsuario = ref(false)
 const mostrarGestionUsuarios = ref(false)
 const mostrarGestionDepartamentos = ref(false)
 
-const pestanaActiva = ref<'activas' | 'completadas'>('activas')
+// Cada pestana es una vista de un estado concreto, para ver de un vistazo
+// como van las tareas de cada empleado. "otras" recoge lo que no encaja en
+// las tres principales (En Revision / Cancelada) para que nada quede oculto.
+type Pestana = 'pendientes' | 'progreso' | 'completadas' | 'otras'
+const pestanaActiva = ref<Pestana>('pendientes')
 const tareasCompletadas = ref<TareaResponse[]>([])
 const cargandoCompletadas = ref(false)
 const errorCompletadas = ref<string | null>(null)
@@ -77,15 +81,43 @@ function esEstadoFinal(estado: string) {
   return ESTADOS_FINALES.includes(estado)
 }
 
+// Las completadas no salen de /tareas/obtener sino de /tareas/completadas,
+// asi que esa pestana usa su propia lista (y su propio cargando/error).
+const tareasPendientes = computed(() => tareas.value.filter(t => t.estado === 'Pendiente'))
+const tareasEnProgreso = computed(() => tareas.value.filter(t => t.estado === 'En Progreso'))
+const tareasOtras = computed(() =>
+  tareas.value.filter(t => !['Pendiente', 'En Progreso', 'Completada'].includes(t.estado))
+)
+
+// Los KPIs de arriba son el mismo conteo que muestra cada pestana.
 const totalTareas = computed(() => tareas.value.length + tareasCompletadas.value.length)
 const completadas = computed(() => tareasCompletadas.value.length)
-const enProgreso = computed(() => tareas.value.filter(t => t.estado === 'En Progreso').length)
-const pendientes = computed(() => tareas.value.filter(t => t.estado === 'Pendiente').length)
+const enProgreso = computed(() => tareasEnProgreso.value.length)
+const pendientes = computed(() => tareasPendientes.value.length)
 
-// La pestana "Activas" no mezcla las tareas ya completadas: esas viven en su propia
-// pestana, cargada desde /tareas/completadas.
-const tareasActivasMostradas = computed(() => tareas.value.filter(t => t.estado !== 'Completada'))
-const tareasMostradas = computed(() => pestanaActiva.value === 'activas' ? tareasActivasMostradas.value : tareasCompletadas.value)
+const tareasMostradas = computed(() => {
+  switch (pestanaActiva.value) {
+    case 'pendientes': return tareasPendientes.value
+    case 'progreso': return tareasEnProgreso.value
+    case 'completadas': return tareasCompletadas.value
+    case 'otras': return tareasOtras.value
+  }
+})
+
+const cargandoPestana = computed(() =>
+  pestanaActiva.value === 'completadas' ? cargandoCompletadas.value : cargando.value
+)
+const errorPestana = computed(() =>
+  pestanaActiva.value === 'completadas' ? errorCompletadas.value : errorCarga.value
+)
+
+const MENSAJES_VACIO: Record<Pestana, string> = {
+  pendientes: 'No hay tareas pendientes.',
+  progreso: 'No hay tareas en progreso.',
+  completadas: 'No hay tareas completadas todavía.',
+  otras: 'No hay tareas en revisión ni canceladas.'
+}
+const mensajeVacio = computed(() => MENSAJES_VACIO[pestanaActiva.value])
 
 const mostrarFormulario = ref(false)
 const nuevaTarea = ref<CrearTareaRequest>({
@@ -276,16 +308,26 @@ onMounted(() => {
     </form>
 
     <div class="tabs">
-      <button class="tab" :class="{ 'tab-activa': pestanaActiva === 'activas' }" @click="pestanaActiva = 'activas'">
-        Activas
+      <button class="tab" :class="{ 'tab-activa': pestanaActiva === 'pendientes' }" @click="pestanaActiva = 'pendientes'">
+        Pendientes <span class="tab-conteo">{{ tareasPendientes.length }}</span>
+      </button>
+      <button class="tab" :class="{ 'tab-activa': pestanaActiva === 'progreso' }" @click="pestanaActiva = 'progreso'">
+        En progreso <span class="tab-conteo">{{ tareasEnProgreso.length }}</span>
       </button>
       <button class="tab" :class="{ 'tab-activa': pestanaActiva === 'completadas' }" @click="pestanaActiva = 'completadas'">
-        Completadas
+        Completadas <span class="tab-conteo">{{ tareasCompletadas.length }}</span>
+      </button>
+      <button
+        v-if="tareasOtras.length > 0"
+        class="tab"
+        :class="{ 'tab-activa': pestanaActiva === 'otras' }"
+        @click="pestanaActiva = 'otras'"
+      >
+        En revisión / canceladas <span class="tab-conteo">{{ tareasOtras.length }}</span>
       </button>
     </div>
 
-    <p v-if="pestanaActiva === 'activas' && errorCarga" class="mensaje-error">{{ errorCarga }}</p>
-    <p v-if="pestanaActiva === 'completadas' && errorCompletadas" class="mensaje-error">{{ errorCompletadas }}</p>
+    <p v-if="errorPestana" class="mensaje-error">{{ errorPestana }}</p>
 
     <div class="tabla-wrapper" v-if="tareasMostradas.length > 0">
       <table class="tabla-tareas">
@@ -331,9 +373,7 @@ onMounted(() => {
         </tbody>
       </table>
     </div>
-    <p v-else-if="!(pestanaActiva === 'activas' ? cargando : cargandoCompletadas)" class="vacio">
-      {{ pestanaActiva === 'activas' ? 'No hay tareas activas registradas todavía.' : 'No hay tareas completadas todavía.' }}
-    </p>
+    <p v-else-if="!cargandoPestana" class="vacio">{{ mensajeVacio }}</p>
 
     <ModalReasignarTarea
       v-if="modalTareaId"
@@ -503,9 +543,11 @@ onMounted(() => {
 }
 .vacio { color: var(--color-text-faint); text-align: center; padding: 2rem 0; }
 
-.tabs { display: flex; gap: 0.25rem; margin-bottom: 1rem; border-bottom: 1px solid var(--color-border); }
+.tabs { display: flex; gap: 0.25rem; margin-bottom: 1rem; overflow-x: auto; border-bottom: 1px solid var(--color-border); }
 .tab {
   padding: 0.6rem 0.9rem;
+  white-space: nowrap;
+  flex-shrink: 0;
   border: none;
   background: none;
   color: var(--color-text-muted);
@@ -519,6 +561,17 @@ onMounted(() => {
 }
 .tab:hover { color: var(--color-text); }
 .tab-activa { color: var(--color-accent); border-bottom-color: var(--color-accent); }
+.tab-conteo {
+  display: inline-block;
+  margin-left: 0.3rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+.tab-activa .tab-conteo { background: var(--color-accent-subtle); color: var(--color-accent); }
 
 .celda-acciones { display: flex; gap: 0.4rem; flex-wrap: wrap; }
 

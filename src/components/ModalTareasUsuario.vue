@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import api from '@/api/axios'
 import type { TareasPorUsuarioResponse } from '@/types'
 import BadgeAtraso from '@/components/BadgeAtraso.vue'
@@ -17,6 +17,49 @@ const emit = defineEmits<{
 const datos = ref<TareasPorUsuarioResponse | null>(null)
 const cargando = ref(false)
 const error = ref<string | null>(null)
+
+// Mismas pestanas que el panel de tareas, mas "Todas" para la vista completa.
+// /tareas/usuario/{id} ya trae las tareas en cualquier estado (incluidas las
+// completadas), asi que se filtra en el cliente sin pedir nada extra.
+type Pestana = 'pendientes' | 'progreso' | 'completadas' | 'otras' | 'todas'
+const pestanaActiva = ref<Pestana>('pendientes')
+
+const ESTADOS_PRINCIPALES = ['Pendiente', 'En Progreso', 'Completada']
+
+function perteneceAPestana(estado: string, pestana: Pestana) {
+  switch (pestana) {
+    case 'pendientes': return estado === 'Pendiente'
+    case 'progreso': return estado === 'En Progreso'
+    case 'completadas': return estado === 'Completada'
+    case 'otras': return !ESTADOS_PRINCIPALES.includes(estado)
+    case 'todas': return true
+  }
+}
+
+const asignadas = computed(() => datos.value?.asignadas ?? [])
+
+const conteoPorPestana = computed(() => {
+  const contar = (pestana: Pestana) => asignadas.value.filter(t => perteneceAPestana(t.estado, pestana)).length
+  return {
+    pendientes: contar('pendientes'),
+    progreso: contar('progreso'),
+    completadas: contar('completadas'),
+    otras: contar('otras'),
+    todas: asignadas.value.length
+  }
+})
+
+const tareasMostradas = computed(() =>
+  asignadas.value.filter(t => perteneceAPestana(t.estado, pestanaActiva.value))
+)
+
+const MENSAJES_VACIO: Record<Pestana, string> = {
+  pendientes: 'No tiene tareas pendientes.',
+  progreso: 'No tiene tareas en progreso.',
+  completadas: 'No tiene tareas completadas.',
+  otras: 'No tiene tareas en revisión ni canceladas.',
+  todas: 'No tiene tareas asignadas.'
+}
 
 async function cargar() {
   cargando.value = true
@@ -69,9 +112,31 @@ onMounted(cargar)
       <p v-if="error" class="mensaje-error">{{ error }}</p>
 
       <template v-if="datos && !cargando && !error">
-        <p class="etiqueta-seccion">Asignadas ({{ datos.asignadas.length }})</p>
-        <div v-if="datos.asignadas.length > 0" class="lista-tareas">
-          <div v-for="tarea in datos.asignadas" :key="tarea.id" class="tarea-item">
+        <div class="tabs">
+          <button class="tab" :class="{ 'tab-activa': pestanaActiva === 'pendientes' }" @click="pestanaActiva = 'pendientes'">
+            Pendientes <span class="tab-conteo">{{ conteoPorPestana.pendientes }}</span>
+          </button>
+          <button class="tab" :class="{ 'tab-activa': pestanaActiva === 'progreso' }" @click="pestanaActiva = 'progreso'">
+            En progreso <span class="tab-conteo">{{ conteoPorPestana.progreso }}</span>
+          </button>
+          <button class="tab" :class="{ 'tab-activa': pestanaActiva === 'completadas' }" @click="pestanaActiva = 'completadas'">
+            Completadas <span class="tab-conteo">{{ conteoPorPestana.completadas }}</span>
+          </button>
+          <button
+            v-if="conteoPorPestana.otras > 0 || pestanaActiva === 'otras'"
+            class="tab"
+            :class="{ 'tab-activa': pestanaActiva === 'otras' }"
+            @click="pestanaActiva = 'otras'"
+          >
+            En revisión / canceladas <span class="tab-conteo">{{ conteoPorPestana.otras }}</span>
+          </button>
+          <button class="tab" :class="{ 'tab-activa': pestanaActiva === 'todas' }" @click="pestanaActiva = 'todas'">
+            Todas <span class="tab-conteo">{{ conteoPorPestana.todas }}</span>
+          </button>
+        </div>
+
+        <div v-if="tareasMostradas.length > 0" class="lista-tareas">
+          <div v-for="tarea in tareasMostradas" :key="tarea.id" class="tarea-item">
             <div class="tarea-item-titulo">
               {{ tarea.titulo }}
               <BadgeAtraso :dias-atraso="tarea.diaAtraso" :estado="tarea.estado" />
@@ -86,7 +151,7 @@ onMounted(cargar)
             </div>
           </div>
         </div>
-        <p v-else class="estado-info">No tiene tareas asignadas.</p>
+        <p v-else class="estado-info">{{ MENSAJES_VACIO[pestanaActiva] }}</p>
       </template>
 
       <button class="btn-cancelar" @click="emit('cerrar')">Cerrar</button>
@@ -151,11 +216,38 @@ h2 { margin: 0; font-size: 1.1rem; color: var(--color-text); }
   font-size: 0.85rem;
 }
 
-.etiqueta-seccion {
-  font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em;
-  color: var(--color-text-faint); margin: 1.25rem 0 0.75rem;
+.tabs {
+  display: flex; gap: 0.25rem; margin-bottom: 1rem; overflow-x: auto;
+  border-bottom: 1px solid var(--color-border);
 }
-.etiqueta-seccion:first-of-type { margin-top: 0; }
+.tab {
+  padding: 0.55rem 0.7rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  font-family: inherit;
+  transition: color 0.12s ease, border-color 0.12s ease;
+}
+.tab:hover { color: var(--color-text); }
+.tab-activa { color: var(--color-accent); border-bottom-color: var(--color-accent); }
+.tab-conteo {
+  display: inline-block;
+  margin-left: 0.3rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+.tab-activa .tab-conteo { background: var(--color-accent-subtle); color: var(--color-accent); }
 
 .lista-tareas { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 0.5rem; }
 

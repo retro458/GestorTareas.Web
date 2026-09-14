@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import api from '@/api/axios'
-import type { ReporteDepartamento, FiltroReporte, TareaResponse, EventoComentario } from '@/types'
+import type { ReporteDepartamento, TareaResponse, EventoComentario, ConteoPorEstado } from '@/types'
 import BadgeAtraso from '@/components/BadgeAtraso.vue'
 import IconX from '@/components/icons/IconX.vue'
 import PanelDetalleTarea from '@/components/PanelDetalleTarea.vue'
@@ -28,7 +28,11 @@ function descripcionDepartamento(departamentoId: number) {
 const reporte = ref<ReporteDepartamento[]>([])
 const cargando = ref(false)
 const error = ref<string | null>(null)
-const filtro = ref<FiltroReporte>('activas')
+// Mismas pestanas que el panel de tareas. Se pide el reporte con filtro=todas
+// una sola vez y cada pestana filtra en el cliente, asi cambiar de pestana es
+// instantaneo y los contadores de todas las pestanas salen de la misma carga.
+type Pestana = 'pendientes' | 'progreso' | 'completadas' | 'otras'
+const pestanaActiva = ref<Pestana>('pendientes')
 const departamentoFiltroId = ref<number | null>(null)
 const deptosExpandidos = ref<Set<number>>(new Set())
 const tareaPanelSeleccionada = ref<TareaResponse | null>(null)
@@ -47,7 +51,7 @@ async function cargar() {
   error.value = null
   try {
     const { data } = await api.get<ReporteDepartamento[]>('/tareas/reporte-departamentos', {
-      params: { filtro: filtro.value }
+      params: { filtro: 'todas' }
     })
     reporte.value = data
   } catch (err: any) {
@@ -87,7 +91,43 @@ function colorPrioridad(prioridad: string) {
   }
 }
 
-const totalGeneral = () => reporteFiltrado.value.reduce((acc, d) => acc + d.total, 0)
+const ESTADOS_PRINCIPALES = ['Pendiente', 'En Progreso', 'Completada']
+
+function perteneceAPestana(estado: string, pestana: Pestana) {
+  switch (pestana) {
+    case 'pendientes': return estado === 'Pendiente'
+    case 'progreso': return estado === 'En Progreso'
+    case 'completadas': return estado === 'Completada'
+    case 'otras': return !ESTADOS_PRINCIPALES.includes(estado)
+  }
+}
+
+function desglose(tareas: TareaResponse[]): ConteoPorEstado[] {
+  const conteos = new Map<string, number>()
+  for (const t of tareas) conteos.set(t.estado, (conteos.get(t.estado) ?? 0) + 1)
+  return [...conteos].map(([estado, cantidad]) => ({ estado, cantidad }))
+}
+
+// Cada departamento con sus tareas, total y desglose recalculados para la pestana activa.
+const deptosPestana = computed(() =>
+  reporteFiltrado.value.map(depto => {
+    const tareas = depto.tareas.filter(t => perteneceAPestana(t.estado, pestanaActiva.value))
+    return { ...depto, tareas, total: tareas.length, desglosePorEstado: desglose(tareas) }
+  })
+)
+
+const conteoPorPestana = computed(() => {
+  const tareas = reporteFiltrado.value.flatMap(d => d.tareas)
+  const contar = (pestana: Pestana) => tareas.filter(t => perteneceAPestana(t.estado, pestana)).length
+  return {
+    pendientes: contar('pendientes'),
+    progreso: contar('progreso'),
+    completadas: contar('completadas'),
+    otras: contar('otras')
+  }
+})
+
+const totalGeneral = computed(() => conteoPorPestana.value[pestanaActiva.value])
 
 onMounted(() => {
   cargar()
@@ -108,14 +148,6 @@ onMounted(() => {
 
       <div class="fila-filtros">
         <div class="campo campo-filtro">
-          <label>Mostrar</label>
-          <select v-model="filtro" @change="cargar">
-            <option value="activas">Tareas activas</option>
-            <option value="completadas">Tareas completadas</option>
-            <option value="todas">Todas las tareas</option>
-          </select>
-        </div>
-        <div class="campo campo-filtro">
           <label>Departamento</label>
           <select v-model.number="departamentoFiltroId">
             <option :value="null">Todos los departamentos</option>
@@ -126,15 +158,35 @@ onMounted(() => {
         </div>
       </div>
 
+      <div class="tabs">
+        <button class="tab" :class="{ 'tab-activa': pestanaActiva === 'pendientes' }" @click="pestanaActiva = 'pendientes'">
+          Pendientes <span class="tab-conteo">{{ conteoPorPestana.pendientes }}</span>
+        </button>
+        <button class="tab" :class="{ 'tab-activa': pestanaActiva === 'progreso' }" @click="pestanaActiva = 'progreso'">
+          En progreso <span class="tab-conteo">{{ conteoPorPestana.progreso }}</span>
+        </button>
+        <button class="tab" :class="{ 'tab-activa': pestanaActiva === 'completadas' }" @click="pestanaActiva = 'completadas'">
+          Completadas <span class="tab-conteo">{{ conteoPorPestana.completadas }}</span>
+        </button>
+        <button
+          v-if="conteoPorPestana.otras > 0 || pestanaActiva === 'otras'"
+          class="tab"
+          :class="{ 'tab-activa': pestanaActiva === 'otras' }"
+          @click="pestanaActiva = 'otras'"
+        >
+          En revisión / canceladas <span class="tab-conteo">{{ conteoPorPestana.otras }}</span>
+        </button>
+      </div>
+
       <p v-if="cargando" class="estado-info">Cargando reporte...</p>
       <p v-if="error" class="mensaje-error">{{ error }}</p>
 
       <template v-if="!cargando && !error">
-        <p class="resumen-total">Total general: <strong>{{ totalGeneral() }}</strong> tarea(s)</p>
+        <p class="resumen-total">Total general: <strong>{{ totalGeneral }}</strong> tarea(s)</p>
 
-        <div v-if="reporteFiltrado.length > 0" class="lista-deptos-reporte">
+        <div v-if="deptosPestana.length > 0" class="lista-deptos-reporte">
           <div
-            v-for="depto in reporteFiltrado"
+            v-for="depto in deptosPestana"
             :key="depto.departamentoId"
             class="depto-reporte"
             :class="{ 'depto-reporte-vacio': depto.total === 0 }"
@@ -147,12 +199,12 @@ onMounted(() => {
               {{ descripcionDepartamento(depto.departamentoId) }}
             </p>
 
-            <div v-if="depto.desglosePorEstado.length > 0" class="depto-reporte-desglose">
+            <div v-if="depto.desglosePorEstado.length > 1" class="depto-reporte-desglose">
               <span v-for="conteo in depto.desglosePorEstado" :key="conteo.estado" class="badge" :class="colorEstado(conteo.estado)">
                 {{ conteo.estado }}: {{ conteo.cantidad }}
               </span>
             </div>
-            <p v-else class="estado-info">Sin tareas para este filtro.</p>
+            <p v-else-if="depto.total === 0" class="estado-info">Sin tareas en este estado.</p>
 
             <button
               v-if="depto.total > 0"
@@ -281,6 +333,39 @@ h2 { margin: 0; font-size: 1.1rem; color: var(--color-text); }
   border-color: var(--color-accent);
   box-shadow: 0 0 0 3px var(--color-accent-subtle);
 }
+
+.tabs {
+  display: flex; gap: 0.25rem; margin-bottom: 1rem; overflow-x: auto;
+  border-bottom: 1px solid var(--color-border);
+}
+.tab {
+  padding: 0.55rem 0.75rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  font-family: inherit;
+  transition: color 0.12s ease, border-color 0.12s ease;
+}
+.tab:hover { color: var(--color-text); }
+.tab-activa { color: var(--color-accent); border-bottom-color: var(--color-accent); }
+.tab-conteo {
+  display: inline-block;
+  margin-left: 0.3rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+.tab-activa .tab-conteo { background: var(--color-accent-subtle); color: var(--color-accent); }
 
 .estado-info { color: var(--color-text-muted); font-size: 0.85rem; }
 .mensaje-error {

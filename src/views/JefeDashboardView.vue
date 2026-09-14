@@ -318,7 +318,7 @@ onMounted(() => {
         Completadas <span class="tab-conteo">{{ tareasCompletadas.length }}</span>
       </button>
       <button
-        v-if="tareasOtras.length > 0"
+        v-if="tareasOtras.length > 0 || pestanaActiva === 'otras'"
         class="tab"
         :class="{ 'tab-activa': pestanaActiva === 'otras' }"
         @click="pestanaActiva = 'otras'"

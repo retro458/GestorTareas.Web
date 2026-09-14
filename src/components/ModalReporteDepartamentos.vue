@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import api from '@/api/axios'
 import type { ReporteDepartamento, TareaResponse, EventoComentario, ConteoPorEstado } from '@/types'
 import BadgeAtraso from '@/components/BadgeAtraso.vue'
@@ -34,17 +34,49 @@ const error = ref<string | null>(null)
 type Pestana = 'pendientes' | 'progreso' | 'completadas' | 'otras'
 const pestanaActiva = ref<Pestana>('pendientes')
 const departamentoFiltroId = ref<number | null>(null)
+const empleadoFiltroId = ref<number | null>(null)
 const deptosExpandidos = ref<Set<number>>(new Set())
 const tareaPanelSeleccionada = ref<TareaResponse | null>(null)
 
 // Las opciones del filtro salen de lo que ya devolvio el backend: para un
 // Encargado eso ya viene limitado a sus propios departamentos, asi que el
 // filtro nunca ofrece departamentos a los que no tiene acceso.
-const reporteFiltrado = computed(() =>
+const reportePorDepartamento = computed(() =>
   departamentoFiltroId.value === null
     ? reporte.value
     : reporte.value.filter(d => d.departamentoId === departamentoFiltroId.value)
 )
+
+// Igual que con los departamentos, los empleados salen de las tareas del propio
+// reporte (asignadoA), asi un Encargado solo ve gente de sus departamentos y la
+// lista se acota al departamento elegido.
+const empleadosDelReporte = computed(() => {
+  const nombres = new Map<number, string>()
+  for (const t of reportePorDepartamento.value.flatMap(d => d.tareas)) {
+    nombres.set(t.asignadoA, t.asignadoANombre)
+  }
+  return [...nombres]
+    .map(([id, nombre]) => ({ id, nombre }))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre))
+})
+
+// Si al cambiar de departamento el empleado elegido ya no tiene tareas ahi,
+// volvemos a "Todos" en vez de dejar un filtro invisible que vacia el reporte.
+watch(empleadosDelReporte, lista => {
+  if (empleadoFiltroId.value !== null && !lista.some(e => e.id === empleadoFiltroId.value)) {
+    empleadoFiltroId.value = null
+  }
+})
+
+// Con un empleado elegido solo quedan sus tareas, y se ocultan los departamentos
+// donde no tiene ninguna (en cualquier estado) para no llenar la vista de vacios.
+const reporteFiltrado = computed(() => {
+  const empleadoId = empleadoFiltroId.value
+  if (empleadoId === null) return reportePorDepartamento.value
+  return reportePorDepartamento.value
+    .map(depto => ({ ...depto, tareas: depto.tareas.filter(t => t.asignadoA === empleadoId) }))
+    .filter(depto => depto.tareas.length > 0)
+})
 
 async function cargar() {
   cargando.value = true
@@ -156,6 +188,15 @@ onMounted(() => {
             </option>
           </select>
         </div>
+        <div class="campo campo-filtro">
+          <label>Empleado</label>
+          <select v-model.number="empleadoFiltroId">
+            <option :value="null">Todos los empleados</option>
+            <option v-for="empleado in empleadosDelReporte" :key="empleado.id" :value="empleado.id">
+              {{ empleado.nombre }}
+            </option>
+          </select>
+        </div>
       </div>
 
       <div class="tabs">
@@ -236,7 +277,9 @@ onMounted(() => {
             </div>
           </div>
         </div>
-        <p v-else class="estado-info">No hay departamentos para mostrar.</p>
+        <p v-else class="estado-info">
+          {{ empleadoFiltroId !== null ? 'Este empleado no tiene tareas en el reporte.' : 'No hay departamentos para mostrar.' }}
+        </p>
       </template>
 
       <button class="btn-cancelar" @click="emit('cerrar')">Cerrar</button>

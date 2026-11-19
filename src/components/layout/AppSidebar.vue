@@ -1,12 +1,15 @@
 <script setup lang="ts">
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { ROLES } from '@/types'
 import IconHome from '@/components/icons/IconHome.vue'
 import IconBuilding from '@/components/icons/IconBuilding.vue'
 import IconUserPlus from '@/components/icons/IconUserPlus.vue'
 import IconPower from '@/components/icons/IconPower.vue'
+import IconClipboardList from '@/components/icons/IconClipboardList.vue'
 
 const authStore = useAuthStore()
+const route = useRoute()
 
 const emit = defineEmits<{
   crearDepartamento: []
@@ -33,8 +36,18 @@ const emit = defineEmits<{
         <span class="nav-icono"><IconHome :size="17" /></span>
         <span class="nav-texto">Panel</span>
       </RouterLink>
+      <RouterLink
+        v-if="authStore.esJefeOEncargado"
+        to="/empleado"
+        class="nav-item"
+        active-class="nav-item-activo"
+      >
+        <span class="nav-icono"><IconClipboardList :size="17" /></span>
+        <span class="nav-texto">Mis tareas</span>
+      </RouterLink>
 
-      <template v-if="authStore.esJefeOEncargado">
+      <!-- Solo en el panel: es la vista que escucha estos eventos y abre los modales -->
+      <template v-if="authStore.esJefeOEncargado && route.name === 'jefe-dashboard'">
         <span class="nav-seccion nav-texto">Administración</span>
         <button
           v-if="authStore.usuario?.rol === ROLES.JEFE"

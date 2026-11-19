@@ -17,6 +17,7 @@ import BadgeAtraso from '@/components/BadgeAtraso.vue'
 import { useTareasHub } from '@/composables/useTareasHub'
 import { useEmpleados } from '@/composables/useEmpleados'
 import { useDepartamentos } from '@/composables/useDepartamentos'
+import { useEstados } from '@/composables/useEstados'
 import { useAuthStore } from '@/stores/auth'
 import { colorAvatar, inicial } from '@/utils/avatarColor'
 import IconClipboardList from '@/components/icons/IconClipboardList.vue'
@@ -55,6 +56,25 @@ const mostrarReporteDepartamentos = ref(false)
 const { notificaciones, quitarNotificacion, eventoComentario } = useTareasHub(() => { cargarTareas(); cargarCompletadas() })
 const { empleados, cargarEmpleados } = useEmpleados()
 const { departamentos, cargarDepartamentos } = useDepartamentos()
+const { estados, cargarEstados } = useEstados()
+
+// Tareas asignadas al propio Jefe/Encargado: puede cambiarles el estado igual
+// que un empleado (misma regla que el backend: AsignadoA == usuario actual).
+// Cancelar no se ofrece aqui, igual que en "Mis tareas".
+const estadosDisponibles = computed(() => estados.value.filter(e => e.nombre !== 'Cancelada'))
+const actualizandoId = ref<number | null>(null)
+
+async function cambiarEstado(tareaId: number, estadoId: number) {
+  actualizandoId.value = tareaId
+  try {
+    await api.patch(`/tareas/${tareaId}/estado`, { estadoId })
+    await Promise.all([cargarTareas(), cargarCompletadas()])
+  } catch (err: any) {
+    alert(err.response?.data?.error ?? 'No se pudo actualizar el estado.')
+  } finally {
+    actualizandoId.value = null
+  }
+}
 const authStore = useAuthStore()
 
 const esJefe = computed(() => authStore.usuario?.rol === ROLES.JEFE)
@@ -205,6 +225,7 @@ onMounted(() => {
   cargarCompletadas()
   cargarEmpleados()
   cargarDepartamentos()
+  cargarEstados()
 })
 </script>
 
@@ -368,6 +389,18 @@ onMounted(() => {
               </button>
               <button v-if="!esEstadoFinal(tarea.estado)" class="btn-mini" @click="tareaEditando = tarea">Editar</button>
               <button v-if="!esEstadoFinal(tarea.estado)" class="btn-mini" @click="abrirModalReasignar(tarea)">Reasignar</button>
+              <select
+                v-if="authStore.estaAsignadaAMi(tarea) && !esEstadoFinal(tarea.estado)"
+                class="select-estado"
+                title="Actualizar estado"
+                :value="estados.find(e => e.nombre === tarea.estado)?.id"
+                :disabled="actualizandoId === tarea.id"
+                @change="cambiarEstado(tarea.id, Number(($event.target as HTMLSelectElement).value))"
+              >
+                <option v-for="estado in estadosDisponibles" :key="estado.id" :value="estado.id">
+                  {{ estado.nombre }}
+                </option>
+              </select>
             </td>
           </tr>
         </tbody>
@@ -596,6 +629,7 @@ onMounted(() => {
 .tabla-tareas tr:last-child td { border-bottom: none; }
 .tabla-tareas tr:hover td { background: var(--color-surface-hover); }
 .celda-titulo { font-weight: 500; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.select-estado { font-size: 0.8rem; padding: 0.2rem 0.35rem; margin-left: 0.25rem; }
 .celda-fecha { font-variant-numeric: tabular-nums; color: var(--color-text-muted); }
 
 .persona { display: flex; align-items: center; gap: 0.5rem; }

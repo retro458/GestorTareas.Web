@@ -25,12 +25,14 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    // "Mis tareas": las tareas asignadas al usuario actual. Es el panel del
+    // Empleado, pero Encargado y Jefe tambien pueden tener tareas asignadas.
     path: '/empleado',
     name: 'empleado-dashboard',
     component: () => import('@/views/EmpleadoDashboardView.vue'),
     meta: {
       requiereAuth: true,
-      rolesPermitidos: [ROLES.EMPLEADO]
+      rolesPermitidos: [ROLES.EMPLEADO, ROLES.ENCARGADO, ROLES.JEFE]
     }
   },
   {

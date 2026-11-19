@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '@/api/axios'
-import type { LoginRequest, LoginResponse } from '@/types'
+import type { LoginRequest, LoginResponse, TareaResponse } from '@/types'
 import { ROLES } from '@/types'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -13,6 +13,12 @@ export const useAuthStore = defineStore('auth', () => {
   const esJefeOEncargado = computed(() =>
     usuario.value?.rol === ROLES.JEFE || usuario.value?.rol === ROLES.ENCARGADO
   )
+
+  // Misma regla que el backend (CambiarEstadoAsync): solo el usuario asignado
+  // cambia el estado de una tarea, sin importar su rol.
+  function estaAsignadaAMi(tarea: TareaResponse) {
+    return usuario.value !== null && tarea.asignadoA === usuario.value.id
+  }
 
   async function login(credenciales: LoginRequest) {
     cargando.value = true
@@ -49,5 +55,5 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  return { usuario, cargando, error, estaAutenticado, esJefeOEncargado, login, logout, restaurarSesion }
+  return { usuario, cargando, error, estaAutenticado, esJefeOEncargado, estaAsignadaAMi, login, logout, restaurarSesion }
 })

@@ -58,14 +58,15 @@ async function autoasignarTarea() {
   }
 }
 
-// Un empleado no cancela sus propias tareas, eso queda a criterio de Jefe/Encargado
+// Aqui nadie cancela sus propias tareas (tampoco un Encargado): cancelar es una accion
+// de gestion que el backend valida aparte por rol y departamento.
 const estadosDisponibles = computed(() => estados.value.filter(e => e.nombre !== 'Cancelada'))
 
 async function cargarTareas() {
   cargando.value = true
   errorCarga.value = null
   try {
-    const { data } = await api.get<TareaResponse[]>('/tareas/obtener')
+    const { data } = await api.get<TareaResponse[]>('/tareas/mis-tareas')
     tareas.value = data
   } catch {
     errorCarga.value = 'No se pudieron cargar tus tareas.'
@@ -90,7 +91,7 @@ async function cargarCompletadas() {
   cargandoCompletadas.value = true
   errorCompletadas.value = null
   try {
-    const { data } = await api.get<TareaResponse[]>('/tareas/completadas')
+    const { data } = await api.get<TareaResponse[]>('/tareas/mis-tareas/completadas')
     tareasCompletadas.value = data
   } catch {
     errorCompletadas.value = 'No se pudieron cargar las tareas completadas.'
@@ -259,7 +260,7 @@ onMounted(() => {
             <IconEye :size="13" />
             Detalle
           </button>
-          <template v-if="!esEstadoFinal(tarea.estado)">
+          <template v-if="authStore.estaAsignadaAMi(tarea) && !esEstadoFinal(tarea.estado)">
             <label>Actualizar estado</label>
             <select
               :value="estados.find(e => e.nombre === tarea.estado)?.id"

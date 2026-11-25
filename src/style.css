@@ -20,3 +20,17 @@ html, body {
   height: 100%;
   width: 100%;
 }
+/* ============================================================
+   Modo demo: franja fija arriba (FranjaDemo.vue). Se desplazan los
+   elementos fijos/pegajosos del layout para que no queden debajo.
+   ============================================================ */
+html.con-franja-demo { --alto-franja-demo: 28px; }
+html.con-franja-demo body { padding-top: var(--alto-franja-demo); }
+html.con-franja-demo .sidebar,
+html.con-franja-demo .topbar { top: var(--alto-franja-demo); }
+html.con-franja-demo .fondo,
+html.con-franja-demo .shell,
+html.con-franja-demo .shell-contenido { min-height: calc(100vh - var(--alto-franja-demo)); }
+@media (max-width: 480px) {
+  html.con-franja-demo .desplegable { top: calc(64px + var(--alto-franja-demo)); }
+}

@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import api from '@/api/axios'
 import { useAuthStore } from '@/stores/auth'
+import { useDemoStore } from '@/stores/demo'
 import { ROLES } from '@/types'
 import type { EmpleadoResponse, TareaResponse } from '@/types'
 import { colorAvatar, inicial } from '@/utils/avatarColor'
@@ -17,6 +18,7 @@ const emit = defineEmits<{
 }>()
 
 const authStore = useAuthStore()
+const demoStore = useDemoStore()
 const cargando = ref(false)
 const errorLista = ref<string | null>(null)
 
@@ -158,10 +160,17 @@ onMounted(inicializar)
                 <IconClipboardList :size="13" />
                 Ver tareas
               </button>
-              <button type="button" class="btn-mini" @click="empleadoEditando = fila">
+              <!-- Cuentas de demo: la API no deja editarlas ni desactivarlas -->
+              <span
+                v-if="demoStore.esCuentaProtegida(fila.nombreUsuario)"
+                class="cuenta-demo"
+                title="No disponible en la demo"
+              >Cuenta de demo</span>
+              <button v-else type="button" class="btn-mini" @click="empleadoEditando = fila">
                 Editar
               </button>
               <button
+                v-if="!demoStore.esCuentaProtegida(fila.nombreUsuario)"
                 type="button"
                 class="btn-mini"
                 :class="{ peligroso: fila.activo }"
@@ -398,4 +407,5 @@ h2 { margin: 0; font-size: 1.1rem; color: var(--color-text); }
   transition: background-color 0.12s ease;
 }
 .btn-cancelar:hover { background: var(--color-surface-hover); }
+.cuenta-demo { font-size: 0.72rem; color: var(--color-text-muted); padding: 0 0.4rem; }
 </style>

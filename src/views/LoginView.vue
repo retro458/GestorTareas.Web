@@ -76,7 +76,7 @@ async function manejarSubmit() {
         <div v-for="cuenta in demoStore.cuentas" :key="cuenta.usuario" class="cuenta">
           <span class="cuenta-datos">
             <span class="cuenta-rol">{{ ETIQUETA_ROL[cuenta.rol] ?? cuenta.rol }}</span>
-            <code>{{ cuenta.usuario }}</code> · <code>{{ cuenta.password }}</code>
+            <span><code>{{ cuenta.usuario }}</code> · <code>{{ cuenta.password }}</code></span>
           </span>
           <button type="button" class="btn-cuenta" @click="usarCuenta(cuenta)">
             Entrar como {{ cuenta.usuario.split('.')[0] }}

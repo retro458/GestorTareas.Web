@@ -5,6 +5,7 @@ import App from './App.vue'
 import router from './router'
 import { useAuthStore } from './stores/auth'
 import { useThemeStore } from './stores/theme'
+import { useDemoStore } from './stores/demo'
 import './styles/tokens.css'
 import './style.css'
 
@@ -25,5 +26,9 @@ authStore.restaurarSesion()
 // entre el tema por defecto y el guardado/preferido por el sistema.
 const themeStore = useThemeStore()
 themeStore.inicializar()
+
+// Modo demo: se pregunta a la API sin bloquear el arranque; la franja y las
+// cuentas de prueba aparecen en cuanto llega la respuesta.
+useDemoStore().cargar()
 
 app.mount('#app')

@@ -1,11 +1,25 @@
 import { defineConfig } from 'vite'
+import type { Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 
+// Demo publica (build con VITE_DEMO=true): agrega <meta name="robots" content="noindex">
+// para que los buscadores no la indexen. El build de produccion no cambia.
+function noIndexEnDemo(): Plugin {
+  return {
+    name: 'taskflow-noindex-demo',
+    transformIndexHtml(html) {
+      if (process.env.VITE_DEMO !== 'true') return html
+      return html.replace('</head>', '  <meta name="robots" content="noindex, nofollow" />\n  </head>')
+    }
+  }
+}
+
 export default defineConfig({
   plugins: [
     vue(),
+    noIndexEnDemo(),
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',

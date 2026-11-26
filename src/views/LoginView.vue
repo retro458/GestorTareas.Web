@@ -2,6 +2,8 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useDemoStore } from '@/stores/demo'
+import type { CuentaDemo } from '@/stores/demo'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 import IconEye from '@/components/icons/IconEye.vue'
 import IconEyeOff from '@/components/icons/IconEyeOff.vue'
@@ -9,10 +11,23 @@ import IconAlertCircle from '@/components/icons/IconAlertCircle.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const demoStore = useDemoStore()
 
 const nombreUsuario = ref('')
 const password = ref('')
 const mostrarPassword = ref(false)
+
+const ETIQUETA_ROL: Record<string, string> = {
+  'Jefe': 'Jefe',
+  'Encargado Departamento': 'Encargado de Contabilidad',
+  'Empleado': 'Empleado de Contabilidad'
+}
+
+// Demo: llena el formulario con la cuenta elegida; el usuario solo pulsa entrar.
+function usarCuenta(cuenta: CuentaDemo) {
+  nombreUsuario.value = cuenta.usuario
+  password.value = cuenta.password
+}
 
 async function manejarSubmit() {
   const exito = await authStore.login({ nombreUsuario: nombreUsuario.value, password: password.value })
@@ -55,6 +70,19 @@ async function manejarSubmit() {
         <span v-if="authStore.cargando" class="spinner"></span>
         {{ authStore.cargando ? 'Ingresando...' : 'Iniciar sesión' }}
       </button>
+
+      <div v-if="demoStore.activo && demoStore.cuentas.length" class="cuentas-demo">
+        <p class="cuentas-titulo">Cuentas de prueba</p>
+        <div v-for="cuenta in demoStore.cuentas" :key="cuenta.usuario" class="cuenta">
+          <span class="cuenta-datos">
+            <span class="cuenta-rol">{{ ETIQUETA_ROL[cuenta.rol] ?? cuenta.rol }}</span>
+            <span><code>{{ cuenta.usuario }}</code> · <code>{{ cuenta.password }}</code></span>
+          </span>
+          <button type="button" class="btn-cuenta" @click="usarCuenta(cuenta)">
+            Entrar como {{ cuenta.usuario.split('.')[0] }}
+          </button>
+        </div>
+      </div>
 
       <p class="footer">© 2026 TaskFlow · Sistema interno de gestión</p>
     </form>
@@ -226,6 +254,48 @@ async function manejarSubmit() {
 @keyframes girar {
   to { transform: rotate(360deg); }
 }
+
+.cuentas-demo {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+  text-align: left;
+}
+.cuentas-titulo {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.cuenta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+}
+.cuenta-datos {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+.cuenta-datos code { font-size: 0.72rem; }
+.cuenta-rol { font-size: 0.8rem; font-weight: 500; color: var(--color-text); }
+.btn-cuenta {
+  flex-shrink: 0;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--color-surface);
+  color: var(--color-accent);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.btn-cuenta:hover { background: var(--color-accent-subtle); }
 
 .footer {
   margin-top: 1.5rem;
